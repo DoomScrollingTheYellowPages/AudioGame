@@ -10,6 +10,7 @@ import { EventBus }         from './core/EventBus.js';
 import { AudioInput }       from './input/AudioInput.js';
 import { MIDIInput }        from './input/MIDIInput.js';
 import { Oscilloscope }     from './ui/Oscilloscope.js';
+import { Tuner }           from './ui/Tuner.js';
 import { KeyboardDisplay }  from './ui/KeyboardDisplay.js';
 import { CCDisplay }        from './ui/CCDisplay.js';
 import { MIDILog }          from './ui/MIDILog.js';
@@ -26,6 +27,7 @@ const audioPanel = document.getElementById('audio-panel');
 const btnAudio   = document.getElementById('start-audio');
 
 const oscilloscope = new Oscilloscope(audioPanel, bus);
+const tuner        = new Tuner(document.getElementById('tuner-wrap'), bus);
 
 btnAudio.addEventListener('click', async () => {
   if (audioInput.active) return;

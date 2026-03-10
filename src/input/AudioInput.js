@@ -111,6 +111,7 @@ export class AudioInput {
       timeDomain: this._timeDomain,
       rms: Math.sqrt(sumSq / this._timeDomain.length),
       peak,
+      sampleRate: this._ctx.sampleRate,
     });
   }
 }

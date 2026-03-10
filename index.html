@@ -175,6 +175,90 @@
     .log-type.other    { color: #888; }
     .log-body { color: #ccc; }
 
+    /* ── Tuner ── */
+    .tuner {
+      border-top: 1px solid #1e1e1e;
+      margin-top: 8px;
+      padding-top: 10px;
+    }
+
+    .tuner-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tuner-note {
+      font-size: 22px;
+      font-weight: bold;
+      min-width: 42px;
+      text-align: center;
+      color: #444;
+      letter-spacing: 1px;
+      transition: color 0.1s;
+    }
+
+    .tuner-meter-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tuner-acc {
+      font-size: 12px;
+      color: #333;
+      user-select: none;
+    }
+
+    .tuner-track {
+      flex: 1;
+      height: 14px;
+      background: #0a0a0a;
+      border: 1px solid #1e1e1e;
+      border-radius: 7px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tuner-center-mark {
+      position: absolute;
+      left: 50%;
+      top: 2px;
+      bottom: 2px;
+      width: 1px;
+      background: #2a2a2a;
+      transform: translateX(-50%);
+    }
+
+    .tuner-needle {
+      position: absolute;
+      top: 2px;
+      bottom: 2px;
+      width: 4px;
+      background: #2a2a2a;
+      border-radius: 2px;
+      transform: translateX(-50%);
+      left: 50%;
+      transition: left 0.08s ease, background 0.1s;
+    }
+
+    .tuner-freq {
+      font-size: 10px;
+      color: #555;
+      min-width: 58px;
+      text-align: right;
+    }
+
+    .tuner-cents {
+      text-align: center;
+      font-size: 10px;
+      color: #333;
+      margin-top: 4px;
+      letter-spacing: 1px;
+      transition: color 0.1s;
+    }
+
     @media (max-width: 600px) {
       .panels { grid-template-columns: 1fr; }
     }
@@ -189,6 +273,8 @@
       <h2>Audio Input</h2>
       <button id="start-audio">Enable Microphone</button>
       <!-- Oscilloscope canvas + meta are mounted here by Oscilloscope.js -->
+      <!-- Tuner is mounted here by Tuner.js -->
+      <div id="tuner-wrap"></div>
     </div>
 
     <!-- ── MIDI Panel ── -->
