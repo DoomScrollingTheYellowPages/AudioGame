@@ -74,9 +74,11 @@ export class Highway {
     ctx.fillRect(0, 0, W, H);
 
     // ── Lane backgrounds + dividers ──
+    // Lanes render bottom-to-top (C at bottom, B at top) — piano/ascending order
     for (let i = 0; i < LANE_COUNT; i++) {
-      const y = i * laneH;
-      ctx.fillStyle = i % 2 === 0 ? COLORS.lane : COLORS.bg;
+      const row = LANE_COUNT - 1 - i;   // display row: lane 0 (C) → bottom row
+      const y   = row * laneH;
+      ctx.fillStyle = row % 2 === 0 ? COLORS.lane : COLORS.bg;
       ctx.fillRect(HIT_ZONE_X, y, W - HIT_ZONE_X, laneH);
 
       // Divider line
@@ -94,8 +96,9 @@ export class Highway {
     ctx.textBaseline = 'middle';
     for (let i = 0; i < LANE_COUNT; i++) {
       const label = LANE_LABELS[i];
+      const row   = LANE_COUNT - 1 - i;
       ctx.fillStyle = this._activeLanes.has(label) ? COLORS.labelActive : COLORS.label;
-      ctx.fillText(label, HIT_ZONE_X / 2, i * laneH + laneH / 2);
+      ctx.fillText(label, HIT_ZONE_X / 2, row * laneH + laneH / 2);
     }
 
     // ── Hit zone line ──
@@ -119,10 +122,11 @@ export class Highway {
       const dx = n.time - position;
       if (dx > LOOK_AHEAD || dx + n.duration / (1 / PIXELS_PER_MS) < -500) continue;
 
-      const x = HIT_ZONE_X + dx * PIXELS_PER_MS;
-      const w = Math.max(n.duration * PIXELS_PER_MS, 8);
-      const y = lane * laneH + pad;
-      const h = laneH - pad * 2;
+      const x   = HIT_ZONE_X + dx * PIXELS_PER_MS;
+      const w   = Math.max(n.duration * PIXELS_PER_MS, 8);
+      const row = LANE_COUNT - 1 - lane;   // invert: C at bottom
+      const y   = row * laneH + pad;
+      const h   = laneH - pad * 2;
 
       // Color based on state
       const state = this._noteStates.get(i);

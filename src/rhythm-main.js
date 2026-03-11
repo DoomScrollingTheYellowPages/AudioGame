@@ -11,14 +11,23 @@ import { Highway }        from './rhythm/Highway.js';
 import { HitJudge }       from './rhythm/HitJudge.js';
 import { listSongs, getSong } from './rhythm/DemoSongs.js';
 import { MidiParser }        from './rhythm/MidiParser.js';
+import { StaffHighway }      from './rhythm/StaffHighway.js';
 
 // ── Bootstrap ──
-const bus        = new EventBus();
-const midiInput  = new MIDIInput(bus);
-const audioInput = new AudioInput(bus);
-const engine     = new SongEngine(bus);
-const highway    = new Highway(document.getElementById('highway-canvas'), bus);
-const judge      = new HitJudge(bus, engine);
+const bus          = new EventBus();
+const midiInput    = new MIDIInput(bus);
+const audioInput   = new AudioInput(bus);
+const engine       = new SongEngine(bus);
+const canvas       = document.getElementById('highway-canvas');
+const highway      = new Highway(canvas, bus);
+const staffHighway = new StaffHighway(canvas, bus);
+const judge        = new HitJudge(bus, engine);
+
+// ── View mode ──
+let viewMode = 'piano';  // 'piano' | 'staff'
+function activeHighway() {
+  return viewMode === 'staff' ? staffHighway : highway;
+}
 
 // ── DOM refs ──
 const midiStatus   = document.getElementById('midi-status');
@@ -38,6 +47,17 @@ const noteButtons  = document.querySelectorAll('.note-btn');
 const resultsDiv   = document.getElementById('results');
 const backdrop     = document.getElementById('backdrop');
 const resultsClose = document.getElementById('results-close');
+const viewBtns     = document.querySelectorAll('.view-btn');
+
+// ── View toggle ──
+viewBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    viewMode = btn.dataset.view;
+    viewBtns.forEach(b => b.classList.toggle('active', b.dataset.view === viewMode));
+    // Re-draw current frame in new mode
+    activeHighway().draw(engine.position, engine.notes);
+  });
+});
 
 // ── Custom song state (set by MIDI upload) ──
 let customSong = null;
@@ -88,7 +108,7 @@ midiUpload.addEventListener('change', async () => {
     engine.load(customSong);
     judge.reset();
     updateScoreUI();
-    highway.draw(0, engine.notes);
+    activeHighway().draw(0, engine.notes);
   } catch (err) {
     console.error('MIDI parse error:', err);
     midiUploadName.textContent = 'parse error';
@@ -125,8 +145,8 @@ bus.on('midi:noteOn', ({ note }) => {
     const letter = judge.pitchLetter(note);
     if (letter) {
       judge.judge(letter);
-      highway.setLaneActive(letter, true);
-      setTimeout(() => highway.setLaneActive(letter, false), 100);
+      activeHighway().setLaneActive(letter, true);
+      setTimeout(() => activeHighway().setLaneActive(letter, false), 100);
     }
   }
 });
@@ -189,10 +209,10 @@ noteButtons.forEach(btn => {
   btn.addEventListener('mousedown', () => {
     if (!engine.running) return;
     judge.judge(letter);
-    highway.setLaneActive(letter, true);
+    activeHighway().setLaneActive(letter, true);
   });
-  btn.addEventListener('mouseup', () => highway.setLaneActive(letter, false));
-  btn.addEventListener('mouseleave', () => highway.setLaneActive(letter, false));
+  btn.addEventListener('mouseup',    () => activeHighway().setLaneActive(letter, false));
+  btn.addEventListener('mouseleave', () => activeHighway().setLaneActive(letter, false));
 });
 
 // ── Keyboard input ──
@@ -206,13 +226,13 @@ document.addEventListener('keydown', (e) => {
   if (letter && engine.running) {
     keysDown.add(e.key);
     judge.judge(letter);
-    highway.setLaneActive(letter, true);
+    activeHighway().setLaneActive(letter, true);
   }
 });
 document.addEventListener('keyup', (e) => {
   keysDown.delete(e.key);
   const letter = KEY_MAP[e.key.toLowerCase()];
-  if (letter) highway.setLaneActive(letter, false);
+  if (letter) activeHighway().setLaneActive(letter, false);
 });
 
 // ── Hit feedback ──
@@ -248,7 +268,7 @@ function updateScoreUI() {
 // ── Game loop (render) ──
 bus.on('song:tick', ({ position, notes }) => {
   judge.checkMisses(position);
-  highway.draw(position, notes);
+  activeHighway().draw(position, notes);
   const pct = Math.min(100, (position / engine.duration) * 100);
   progressBar.style.width = `${pct}%`;
 });
@@ -266,8 +286,8 @@ startBtn.addEventListener('click', () => {
   loadSelectedSong();
   engine.start();
   startBtn.textContent = 'Playing...';
-  // Draw initial frame
-  highway.draw(0, engine.notes);
+  // Draw initial frame in active view
+  activeHighway().draw(0, engine.notes);
 });
 
 // ── Results ──
@@ -293,5 +313,5 @@ backdrop.addEventListener('click', hideResults);
 
 // ── Init ──
 midiInput.init();
-// Draw empty highway
-highway.draw(0, []);
+// Draw initial empty frame in the default (piano) view
+activeHighway().draw(0, []);
