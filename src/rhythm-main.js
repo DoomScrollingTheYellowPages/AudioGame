@@ -44,8 +44,10 @@ const comboEl      = document.getElementById('combo');
 const accuracyEl   = document.getElementById('accuracy');
 const progressBar  = document.getElementById('progress-bar');
 const feedbackEl   = document.getElementById('hit-feedback');
-const startBtn     = document.getElementById('btn-start');
-const stopBtn      = document.getElementById('btn-stop');
+const playBtn      = document.getElementById('btn-play');
+const stopTransBtn = document.getElementById('btn-stop-transport');
+const prevBtn      = document.getElementById('btn-prev');
+const nextBtn      = document.getElementById('btn-next');
 const noteButtons  = document.querySelectorAll('.note-btn');
 const resultsDiv   = document.getElementById('results');
 const backdrop     = document.getElementById('backdrop');
@@ -404,45 +406,67 @@ bus.on('song:tick', ({ position, notes }) => {
   progressBar.style.width = `${pct}%`;
 });
 
-// ── Song end ──
-bus.on('song:end', () => {
-  startBtn.textContent = 'Restart';
-  stopBtn.style.display = 'none';
-  // Stop any lingering synth voices
-  for (const [, tid] of _activeNotes) {
-    clearTimeout(tid);
-  }
-  _activeNotes.clear();
-  showResults();
-});
-
-// ── Start / Restart ──
-startBtn.addEventListener('click', () => {
-  hideResults();
-  if (engine.running) engine.stop();
-  // Reset synth state
+// ── Transport helpers ──
+function clearSynth() {
   _playedNotes.clear();
   for (const [, tid] of _activeNotes) clearTimeout(tid);
   _activeNotes.clear();
+}
+
+function setPlaying(active) {
+  playBtn.classList.toggle('playing', active);
+}
+
+// ── Song end ──
+bus.on('song:end', () => {
+  setPlaying(false);
+  // Stop any lingering synth voices
+  clearSynth();
+  showResults();
+});
+
+// ── Play ──
+playBtn.addEventListener('click', () => {
+  hideResults();
+  if (engine.running) engine.stop();
+  clearSynth();
   loadSelectedSong();
   buildBeatPips();
   engine.start();
-  startBtn.textContent = 'Playing...';
-  stopBtn.style.display = '';
-  // Draw initial frame in active view
+  setPlaying(true);
   activeHighway().draw(0, engine.notes);
 });
 
 // ── Stop ──
-stopBtn.addEventListener('click', () => {
+stopTransBtn.addEventListener('click', () => {
   engine.stop();
-  _playedNotes.clear();
-  for (const [, tid] of _activeNotes) clearTimeout(tid);
-  _activeNotes.clear();
-  startBtn.textContent = 'Start';
-  stopBtn.style.display = 'none';
+  clearSynth();
+  setPlaying(false);
   progressBar.style.width = '0%';
   activeHighway().draw(0, engine.notes);
+});
+
+// ── Skip back (restart) ──
+prevBtn.addEventListener('click', () => {
+  const wasRunning = engine.running;
+  engine.stop();
+  clearSynth();
+  loadSelectedSong();
+  buildBeatPips();
+  if (wasRunning) {
+    engine.start();
+    setPlaying(true);
+  } else {
+    setPlaying(false);
+    progressBar.style.width = '0%';
+  }
+  activeHighway().draw(0, engine.notes);
+});
+
+// ── Skip forward (one bar) ──
+nextBtn.addEventListener('click', () => {
+  if (!engine.running) return;
+  engine.seek(engine.position + engine.msPerBar);
 });
 
 // ── Results ──

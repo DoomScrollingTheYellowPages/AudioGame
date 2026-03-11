@@ -354,42 +354,35 @@
       letter-spacing: 1px;
     }
 
-    /* ── Start / Stop / Restart ── */
-    .controls-row {
+    /* ── Transport controls ── */
+    .transport {
       display: flex;
-      gap: 10px;
+      gap: 4px;
       align-items: center;
+      justify-content: center;
       margin-bottom: 16px;
     }
 
-    #btn-start {
-      background: #1a1a1a;
-      border: 1px solid #333;
+    .transport-btn {
+      background: #1e1e1e;
+      border: 1px solid #2a2a2a;
       color: #aaa;
       font-family: inherit;
-      font-size: 14px;
-      padding: 10px 36px;
+      font-size: 16px;
+      width: 44px;
+      height: 36px;
       border-radius: 6px;
       cursor: pointer;
-      letter-spacing: 2px;
-      transition: border-color 0.2s, color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+      padding: 0;
+      line-height: 1;
     }
-    #btn-start:hover { border-color: #00ff88; color: #00ff88; }
-
-    #btn-stop {
-      display: none;
-      background: #1a0d0d;
-      border: 1px solid #ff4444;
-      color: #ff4444;
-      font-family: inherit;
-      font-size: 14px;
-      padding: 10px 28px;
-      border-radius: 6px;
-      cursor: pointer;
-      letter-spacing: 2px;
-      transition: border-color 0.2s, color 0.2s, background 0.2s;
-    }
-    #btn-stop:hover { background: #2a0d0d; border-color: #ff6666; color: #ff6666; }
+    .transport-btn:hover           { background: #2a2a2a; color: #e0e0e0; }
+    .transport-btn:active          { background: #333; }
+    #btn-play.playing              { background: #0d1f14; color: #00ff88; border-color: #00ff88; }
 
     /* ── Results overlay ── */
     #results {
@@ -538,10 +531,12 @@
   <!-- ── Detected pitch (mic) ── -->
   <div id="detected-pitch"></div>
 
-  <!-- ── Controls ── -->
-  <div class="controls-row">
-    <button id="btn-start">Start</button>
-    <button id="btn-stop">&#9632; Stop</button>
+  <!-- ── Transport ── -->
+  <div class="transport">
+    <button class="transport-btn" id="btn-prev"           title="Restart">&#x23EE;</button>
+    <button class="transport-btn" id="btn-next"           title="Skip forward one bar">&#x23ED;</button>
+    <button class="transport-btn" id="btn-stop-transport" title="Stop">&#x23F9;</button>
+    <button class="transport-btn" id="btn-play"           title="Play">&#x25B6;</button>
   </div>
 
   <p class="prompt">Play on MIDI keyboard &middot; sing/play into mic &middot; or click a note</p>
