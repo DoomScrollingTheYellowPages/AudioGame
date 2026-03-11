@@ -68,12 +68,17 @@ export class MIDIInput {
 
   _refreshDevices() {
     if (!this._access) return;
-    const inputs = [...this._access.inputs.values()].map(d => ({
-      id: d.id,
-      name: d.name,
-    }));
+    const inputs = [...this._access.inputs.values()]
+      .filter(d => d.state === 'connected')
+      .map(d => ({ id: d.id, name: d.name }));
 
     this._bus.emit('midi:devices', { inputs });
+
+    // If active port disconnected, clear it
+    if (this._activePort && this._activePort.state !== 'connected') {
+      this._activePort.onmidimessage = null;
+      this._activePort = null;
+    }
 
     // Auto-connect first device if nothing is active
     if (inputs.length && !this._activePort) {

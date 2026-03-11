@@ -76,8 +76,25 @@
       line-height: 1.5;
     }
 
+    /* ── Device status bar ── */
+    .device-status {
+      width: 100%;
+      max-width: 560px;
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: #333;
+    }
+    .device-status .label { color: #444; }
+    .device-status .value { color: #555; }
+    .device-status .value.ok { color: #00ff88; }
+    .device-status .value.err { color: #ff4444; }
+
     @media (max-width: 480px) {
       .nav-grid { grid-template-columns: 1fr; max-width: 300px; }
+      .device-status { flex-direction: column; align-items: center; gap: 6px; }
     }
   </style>
 </head>
@@ -100,6 +117,58 @@
     </a>
 
   </nav>
+
+  <div class="device-status">
+    <span><span class="label">MIDI:</span> <span id="midi-info" class="value">checking…</span></span>
+    <span><span class="label">Audio:</span> <span id="audio-info" class="value">checking…</span></span>
+  </div>
+
+  <script type="module">
+    const midiEl  = document.getElementById('midi-info');
+    const audioEl = document.getElementById('audio-info');
+
+    // ── MIDI probe ──
+    if (!navigator.requestMIDIAccess) {
+      midiEl.textContent = 'not supported';
+      midiEl.className = 'value err';
+    } else {
+      try {
+        const access = await navigator.requestMIDIAccess({ sysex: false });
+        const update = () => {
+          const inputs = [...access.inputs.values()].filter(d => d.state === 'connected');
+          if (inputs.length) {
+            midiEl.textContent = inputs.map(d => d.name).join(', ');
+            midiEl.className = 'value ok';
+          } else {
+            midiEl.textContent = 'no devices';
+            midiEl.className = 'value';
+          }
+        };
+        update();
+        access.onstatechange = update;
+      } catch {
+        midiEl.textContent = 'access denied';
+        midiEl.className = 'value err';
+      }
+    }
+
+    // ── Audio probe ──
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mics = devices.filter(d => d.kind === 'audioinput' && d.deviceId);
+      if (mics.length) {
+        const names = mics.map(d => d.label || 'Microphone').filter((v,i,a) => a.indexOf(v) === i);
+        audioEl.textContent = names.join(', ');
+        audioEl.className = 'value ok';
+      } else {
+        audioEl.textContent = 'no microphones';
+        audioEl.className = 'value';
+      }
+    } catch {
+      audioEl.textContent = 'access denied';
+      audioEl.className = 'value err';
+    }
+  </script>
 
 </body>
 </html>

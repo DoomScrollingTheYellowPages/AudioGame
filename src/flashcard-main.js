@@ -24,6 +24,7 @@ const audioStatus  = document.getElementById('audio-status');
 const micBtn       = document.getElementById('btn-mic');
 const detectedEl   = document.getElementById('detected-pitch');
 const noteButtons  = document.querySelectorAll('.note-btn');
+const deviceSelect = document.getElementById('midi-device-select');
 
 // ── Game ──
 const game = new FlashcardGame(canvas, bus, { scoreEl, streakEl, feedbackEl, nextBtn });
@@ -47,6 +48,14 @@ bus.on('midi:state', ({ supported, access }) => {
     midiStatus.dataset.state = 'ok';
   }
 });
+
+bus.on('midi:devices', ({ inputs }) => {
+  deviceSelect.innerHTML = inputs.length
+    ? inputs.map(d => `<option value="${d.id}">${d.name}</option>`).join('')
+    : '<option>\u2014 no devices \u2014</option>';
+});
+
+deviceSelect.addEventListener('change', () => midiInput.connect(deviceSelect.value));
 
 bus.on('midi:noteOn', () => {
   midiStatus.textContent   = 'MIDI connected';
