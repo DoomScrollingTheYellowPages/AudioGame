@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// SongEngine — playback clock for rhythm game
+// SongEngine — playback clock for music game
 // ─────────────────────────────────────────────
 // Drives the game loop using performance.now().
 // Does NOT produce audio — it just tracks time
@@ -7,6 +7,7 @@
 //
 // Emits via EventBus:
 //   'song:tick'  { position, notes }  — every frame
+//   'song:beat'  { beat, bar, accented } — on each beat
 //   'song:end'                        — song finished
 // ─────────────────────────────────────────────
 
@@ -18,12 +19,14 @@ export class SongEngine {
     this._bus = bus;
     this._notes = [];
     this._bpm = 120;
+    this._meter = [4, 4];     // [numerator, denominator]
     this._startTime = 0;
     this._position = 0;       // ms into the song
     this._running = false;
     this._rafId = null;
     this._songDuration = 0;   // ms total
     this._countIn = 2000;     // 2 second lead-in before notes appear
+    this._lastBeat = -1;      // track which beat we last fired
   }
 
   /**
@@ -32,6 +35,8 @@ export class SongEngine {
    */
   load(song) {
     this._bpm = song.bpm;
+    this._meter = song.meter || [4, 4];
+    this._lastBeat = -1;
     // Shift all note times forward by countIn so player has visual lead time
     this._notes = song.notes.map(n => ({
       ...n,
@@ -44,6 +49,7 @@ export class SongEngine {
 
   get notes()       { return this._notes; }
   get bpm()         { return this._bpm; }
+  get meter()       { return this._meter; }
   get duration()    { return this._songDuration; }
   get position()    { return this._position; }
   get running()     { return this._running; }
@@ -73,6 +79,22 @@ export class SongEngine {
     if (!this._running) return;
 
     this._position = performance.now() - this._startTime;
+
+    // Beat detection — fire song:beat on each new beat
+    const msPerBeat = 60000 / this._bpm;
+    const currentBeat = Math.floor(this._position / msPerBeat);
+    if (currentBeat !== this._lastBeat) {
+      this._lastBeat = currentBeat;
+      const beatsPerBar = this._meter[0];
+      const beatInBar = currentBeat % beatsPerBar;
+      const bar = Math.floor(currentBeat / beatsPerBar);
+      this._bus.emit('song:beat', {
+        beat: currentBeat,
+        beatInBar,
+        bar,
+        accented: beatInBar === 0,
+      });
+    }
 
     this._bus.emit('song:tick', {
       position: this._position,

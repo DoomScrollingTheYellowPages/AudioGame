@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rhythm Game — AudioGame</title>
+  <title>Music Game — AudioGame</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -158,6 +158,68 @@
       white-space: nowrap;
     }
 
+    /* ── Playback controls ── */
+    .playback-bar {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      padding-bottom: 10px;
+      font-size: 10px;
+      color: #555;
+      letter-spacing: 1px;
+    }
+
+    .playback-bar label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .vol-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 80px;
+      height: 4px;
+      background: #2a2a2a;
+      border-radius: 2px;
+      outline: none;
+    }
+    .vol-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #00ff88;
+      cursor: pointer;
+    }
+    .vol-slider::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #00ff88;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* ── Rotary dial (metronome) ── */
+    .dial-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dial {
+      position: relative;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+    }
+    .dial canvas {
+      display: block;
+    }
+
     /* ── Score bar ── */
     .score-bar {
       width: 100%;
@@ -171,6 +233,33 @@
     #score       { color: #e0e0e0; }
     #combo       { color: #888; }
     #accuracy    { color: #555; }
+
+    /* ── Beat indicator ── */
+    .beat-indicator {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      gap: 4px;
+      padding-bottom: 6px;
+      height: 14px;
+      align-items: stretch;
+    }
+    .beat-indicator .beat-pip {
+      flex: 1;
+      border-radius: 2px;
+      background: #1a1a1a;
+      transition: background 0.05s;
+    }
+    .beat-indicator .beat-pip.active {
+      background: #00ff88;
+    }
+    .beat-indicator .beat-pip.active.accent {
+      background: #00ff88;
+      box-shadow: 0 0 6px rgba(0, 255, 136, 0.4);
+    }
+    .beat-indicator .beat-pip.past {
+      background: #1e2e1e;
+    }
 
     /* ── Highway canvas ── */
     .highway-wrap {
@@ -238,17 +327,32 @@
       border: 1px solid #2a2a2a;
       color: #888;
       font-family: inherit;
-      font-size: 16px;
+      font-size: 13px;
       font-weight: bold;
-      width: 52px;
+      width: 46px;
       height: 52px;
       border-radius: 6px;
       cursor: pointer;
-      letter-spacing: 1px;
+      letter-spacing: 0;
       transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .note-btn[data-black="true"] {
+      background: #111;
+      color: #555;
+      height: 44px;
+      font-size: 11px;
     }
     .note-btn:hover { border-color: #00ff88; color: #00ff88; background: #161f18; }
     .note-btn:active { background: #0f1a12; }
+
+    .keyboard-hint {
+      font-size: 9px;
+      color: #333;
+      text-align: center;
+      margin-top: -10px;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
 
     /* ── Start / Restart ── */
     #btn-start {
@@ -351,7 +455,7 @@
   <!-- ── Header ── -->
   <header class="page-header">
     <a class="back-link" href="./index.html">&larr; Back</a>
-    <span class="page-title">Rhythm Game</span>
+    <span class="page-title">Music Game</span>
     <div class="input-status">
       <span id="midi-status">MIDI &mdash;</span>
       <select id="midi-device-select"><option>&mdash; no devices &mdash;</option></select>
@@ -374,6 +478,19 @@
     </div>
   </div>
 
+  <!-- ── Playback controls ── -->
+  <div class="playback-bar">
+    <label>Volume
+      <input type="range" id="master-vol" class="vol-slider" min="0" max="100" value="50" />
+    </label>
+    <div class="dial-wrap">
+      <span>Metronome</span>
+      <div class="dial" id="met-dial" title="Metronome volume">
+        <canvas width="32" height="32"></canvas>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Score ── -->
   <div class="score-bar">
     <span id="score">0</span>
@@ -386,9 +503,12 @@
     <div id="progress-bar"></div>
   </div>
 
+  <!-- ── Beat indicator ── -->
+  <div class="beat-indicator" id="beat-indicator"></div>
+
   <!-- ── Highway ── -->
   <div class="highway-wrap">
-    <canvas id="highway-canvas" width="800" height="280"></canvas>
+    <canvas id="highway-canvas" width="800" height="360"></canvas>
   </div>
 
   <!-- ── Hit feedback ── -->
@@ -403,13 +523,19 @@
   <p class="prompt">Play on MIDI keyboard &middot; sing/play into mic &middot; or click a note</p>
   <div class="note-buttons">
     <button class="note-btn" data-note="C">C</button>
+    <button class="note-btn" data-note="C#" data-black="true">C&#9839;</button>
     <button class="note-btn" data-note="D">D</button>
+    <button class="note-btn" data-note="D#" data-black="true">D&#9839;</button>
     <button class="note-btn" data-note="E">E</button>
     <button class="note-btn" data-note="F">F</button>
+    <button class="note-btn" data-note="F#" data-black="true">F&#9839;</button>
     <button class="note-btn" data-note="G">G</button>
+    <button class="note-btn" data-note="G#" data-black="true">G&#9839;</button>
     <button class="note-btn" data-note="A">A</button>
+    <button class="note-btn" data-note="A#" data-black="true">A&#9839;</button>
     <button class="note-btn" data-note="B">B</button>
   </div>
+  <p class="keyboard-hint">keys: a&nbsp;w&nbsp;s&nbsp;e&nbsp;d &nbsp; f&nbsp;t&nbsp;g&nbsp;y&nbsp;h&nbsp;u&nbsp;j</p>
 
   <!-- ── Results overlay ── -->
   <div id="backdrop"></div>

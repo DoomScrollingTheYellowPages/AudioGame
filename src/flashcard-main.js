@@ -7,6 +7,7 @@ import { MIDIInput }        from './input/MIDIInput.js';
 import { AudioInput }       from './input/AudioInput.js';
 import { createPitchBridge, detectPitch, freqToNote } from './core/PitchDetector.js';
 import { FlashcardGame }    from './flashcard/FlashcardGame.js';
+import { Synth }            from './audio/Synth.js';
 
 // ── Bootstrap ──
 const bus        = new EventBus();
@@ -27,9 +28,13 @@ const noteButtons  = document.querySelectorAll('.note-btn');
 const deviceSelect = document.getElementById('midi-device-select');
 
 // ── Game ──
-const game = new FlashcardGame(canvas, bus, { scoreEl, streakEl, feedbackEl, nextBtn });
+const synth = new Synth();
+const game = new FlashcardGame(canvas, bus, { scoreEl, streakEl, feedbackEl, nextBtn }, synth);
+
+const playNoteBtn = document.getElementById('btn-play-note');
 
 nextBtn.addEventListener('click', () => game.nextNote());
+playNoteBtn.addEventListener('click', () => game.playCurrentNote());
 
 noteButtons.forEach(btn => {
   btn.addEventListener('click', () => game.submitAnswer(btn.dataset.note));

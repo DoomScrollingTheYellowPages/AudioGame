@@ -12,12 +12,14 @@ import { HitJudge }       from './rhythm/HitJudge.js';
 import { listSongs, getSong } from './rhythm/DemoSongs.js';
 import { MidiParser }        from './rhythm/MidiParser.js';
 import { StaffHighway }      from './rhythm/StaffHighway.js';
+import { Synth }             from './audio/Synth.js';
 
 // ── Bootstrap ──
 const bus          = new EventBus();
 const midiInput    = new MIDIInput(bus);
 const audioInput   = new AudioInput(bus);
 const engine       = new SongEngine(bus);
+const synth        = new Synth();
 const canvas       = document.getElementById('highway-canvas');
 const highway      = new Highway(canvas, bus);
 const staffHighway = new StaffHighway(canvas, bus);
@@ -48,6 +50,9 @@ const resultsDiv   = document.getElementById('results');
 const backdrop     = document.getElementById('backdrop');
 const resultsClose = document.getElementById('results-close');
 const viewBtns     = document.querySelectorAll('.view-btn');
+const masterVolEl  = document.getElementById('master-vol');
+const metDialEl    = document.getElementById('met-dial');
+const beatIndicator = document.getElementById('beat-indicator');
 
 // ── View toggle ──
 viewBtns.forEach(btn => {
@@ -58,6 +63,73 @@ viewBtns.forEach(btn => {
     activeHighway().draw(engine.position, engine.notes);
   });
 });
+
+// ── Playback controls ──
+masterVolEl.addEventListener('input', () => {
+  synth.setMasterVolume(masterVolEl.value / 100);
+});
+
+// Metronome rotary dial
+const metDialCanvas = metDialEl.querySelector('canvas');
+const metDialCtx = metDialCanvas.getContext('2d');
+let metDialValue = 0.5; // 0.0–1.0
+
+function drawMetDial(v) {
+  const w = 32, h = 32, r = 12;
+  const ctx = metDialCtx;
+  ctx.clearRect(0, 0, w, h);
+
+  // Track ring
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, r, 0.75 * Math.PI, 0.25 * Math.PI);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.stroke();
+
+  // Value arc
+  const startAngle = 0.75 * Math.PI;
+  const endAngle = startAngle + v * 1.5 * Math.PI;
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, r, startAngle, endAngle);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = v > 0 ? '#00ff88' : '#333';
+  ctx.stroke();
+
+  // Pointer dot
+  const px = w / 2 + r * Math.cos(endAngle);
+  const py = h / 2 + r * Math.sin(endAngle);
+  ctx.beginPath();
+  ctx.arc(px, py, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#e0e0e0';
+  ctx.fill();
+}
+
+drawMetDial(metDialValue);
+
+// Drag interaction for dial
+let dragging = false;
+metDialEl.addEventListener('mousedown', (e) => {
+  dragging = true;
+  updateDial(e);
+});
+document.addEventListener('mousemove', (e) => {
+  if (dragging) updateDial(e);
+});
+document.addEventListener('mouseup', () => { dragging = false; });
+
+function updateDial(e) {
+  const rect = metDialCanvas.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  let angle = Math.atan2(e.clientY - cy, e.clientX - cx);
+  // Map angle to 0–1: start at 0.75π (bottom-left), sweep 1.5π clockwise
+  let norm = (angle - 0.75 * Math.PI) / (1.5 * Math.PI);
+  // Wrap negative angles
+  if (norm < -0.2) norm += (2 * Math.PI) / (1.5 * Math.PI);
+  metDialValue = Math.max(0, Math.min(1, norm));
+  synth.setMetronomeVolume(metDialValue);
+  drawMetDial(metDialValue);
+}
 
 // ── Custom song state (set by MIDI upload) ──
 let customSong = null;
@@ -76,15 +148,44 @@ function loadSelectedSong() {
     ? `${song.bpm} BPM (${noteCount} notes)`
     : `${song.bpm} BPM`;
   engine.load(song);
+  // Pass timing info to both renderers for beat/bar lines
+  highway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
+  staffHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
   judge.reset();
   updateScoreUI();
+}
+
+// ── Beat indicator ──
+function buildBeatPips() {
+  const beatsPerBar = engine.meter[0];
+  beatIndicator.innerHTML = '';
+  for (let i = 0; i < beatsPerBar; i++) {
+    const pip = document.createElement('div');
+    pip.className = 'beat-pip';
+    beatIndicator.appendChild(pip);
+  }
+}
+
+function updateBeatIndicator(beatInBar, accented) {
+  const pips = beatIndicator.children;
+  for (let i = 0; i < pips.length; i++) {
+    pips[i].classList.remove('active', 'accent', 'past');
+    if (i === beatInBar) {
+      pips[i].classList.add('active');
+      if (accented) pips[i].classList.add('accent');
+    } else if (i < beatInBar) {
+      pips[i].classList.add('past');
+    }
+  }
 }
 
 songSelect.addEventListener('change', () => {
   clearCustomSong();
   loadSelectedSong();
+  buildBeatPips();
 });
 loadSelectedSong();
+buildBeatPips();
 
 // ── MIDI file upload ──
 const midiUpload     = document.getElementById('midi-upload');
@@ -102,12 +203,15 @@ midiUpload.addEventListener('change', async () => {
   try {
     const buf = await file.arrayBuffer();
     const parsed = MidiParser.parse(buf);
-    customSong = { bpm: parsed.bpm, notes: parsed.notes };
+    customSong = { bpm: parsed.bpm, meter: parsed.meter, notes: parsed.notes };
     midiUploadName.textContent = file.name;
     songBpmEl.textContent = `${parsed.bpm} BPM (${parsed.notes.length} notes)`;
     engine.load(customSong);
+    highway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
+    staffHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
     judge.reset();
     updateScoreUI();
+    buildBeatPips();
     activeHighway().draw(0, engine.notes);
   } catch (err) {
     console.error('MIDI parse error:', err);
@@ -142,12 +246,10 @@ bus.on('midi:noteOn', ({ note }) => {
   midiStatus.textContent   = 'MIDI connected';
   midiStatus.dataset.state = 'ok';
   if (engine.running) {
-    const letter = judge.pitchLetter(note);
-    if (letter) {
-      judge.judge(letter);
-      activeHighway().setLaneActive(letter, true);
-      setTimeout(() => activeHighway().setLaneActive(letter, false), 100);
-    }
+    const name = judge.pitchName(note);
+    judge.judge(name);
+    activeHighway().setLaneActive(name, true);
+    setTimeout(() => activeHighway().setLaneActive(name, false), 100);
   }
 });
 
@@ -192,15 +294,12 @@ bus.on('audio:frame', ({ timeDomain, sampleRate }) => {
   }
 });
 
-// Audio pitch → judge (only natural notes)
+// Audio pitch → judge (all 12 chromatic notes)
 bus.on('audio:pitch', ({ noteName }) => {
   if (!engine.running) return;
-  const letter = noteName.length === 1 && 'CDEFGAB'.includes(noteName) ? noteName : null;
-  if (letter) {
-    judge.judge(letter);
-    activeHighway().setLaneActive(letter, true);
-    setTimeout(() => activeHighway().setLaneActive(letter, false), 100);
-  }
+  judge.judge(noteName);
+  activeHighway().setLaneActive(noteName, true);
+  setTimeout(() => activeHighway().setLaneActive(noteName, false), 100);
 });
 
 // ── Note buttons ──
@@ -216,8 +315,10 @@ noteButtons.forEach(btn => {
 });
 
 // ── Keyboard input ──
+// Piano layout: white keys on home row, black keys on top row
 const KEY_MAP = {
-  'a': 'C', 's': 'D', 'd': 'E', 'f': 'F', 'g': 'G', 'h': 'A', 'j': 'B',
+  'a': 'C', 'w': 'C#', 's': 'D', 'e': 'D#', 'd': 'E',
+  'f': 'F', 't': 'F#', 'g': 'G', 'y': 'G#', 'h': 'A', 'u': 'A#', 'j': 'B',
 };
 const keysDown = new Set();
 document.addEventListener('keydown', (e) => {
@@ -265,6 +366,35 @@ function updateScoreUI() {
   accuracyEl.textContent = `${judge.accuracy}%`;
 }
 
+// ── Synth: song note playback ──
+const _playedNotes = new Set();  // indices of notes already triggered
+const _activeNotes = new Map();  // index → scheduled noteOff timeout
+
+bus.on('song:tick', ({ position, notes }) => {
+  // Trigger notes as they arrive at their time
+  for (let i = 0; i < notes.length; i++) {
+    if (_playedNotes.has(i)) continue;
+    const n = notes[i];
+    if (position >= n.time && position < n.time + n.duration) {
+      _playedNotes.add(i);
+      synth.noteOn(n.note, n.velocity);
+      // Schedule noteOff
+      const remaining = n.duration - (position - n.time);
+      const tid = setTimeout(() => {
+        synth.noteOff(n.note);
+        _activeNotes.delete(i);
+      }, remaining);
+      _activeNotes.set(i, tid);
+    }
+  }
+});
+
+// ── Synth: metronome + beat indicator ──
+bus.on('song:beat', ({ beatInBar, accented }) => {
+  synth.clickMetronome(accented);
+  updateBeatIndicator(beatInBar, accented);
+});
+
 // ── Game loop (render) ──
 bus.on('song:tick', ({ position, notes }) => {
   judge.checkMisses(position);
@@ -276,6 +406,11 @@ bus.on('song:tick', ({ position, notes }) => {
 // ── Song end ──
 bus.on('song:end', () => {
   startBtn.textContent = 'Restart';
+  // Stop any lingering synth voices
+  for (const [i, tid] of _activeNotes) {
+    clearTimeout(tid);
+  }
+  _activeNotes.clear();
   showResults();
 });
 
@@ -283,7 +418,12 @@ bus.on('song:end', () => {
 startBtn.addEventListener('click', () => {
   hideResults();
   if (engine.running) engine.stop();
+  // Reset synth state
+  _playedNotes.clear();
+  for (const [, tid] of _activeNotes) clearTimeout(tid);
+  _activeNotes.clear();
   loadSelectedSong();
+  buildBeatPips();
   engine.start();
   startBtn.textContent = 'Playing...';
   // Draw initial frame in active view

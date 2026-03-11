@@ -10,7 +10,7 @@ export class MidiParser {
   /**
    * Parse a .mid ArrayBuffer.
    * @param {ArrayBuffer} buffer
-   * @returns {{ bpm: number, notes: Array<{time: number, note: number, velocity: number, duration: number}> }}
+   * @returns {{ bpm: number, meter: number[], notes: Array<{time: number, note: number, velocity: number, duration: number}> }}
    */
   static parse(buffer) {
     const view = new DataView(buffer);
@@ -26,6 +26,7 @@ export class MidiParser {
 
     // ── Parse all tracks ──
     let bpm = 120; // default
+    let meter = [4, 4]; // default 4/4
     const allEvents = [];
 
     for (let t = 0; t < numTracks; t++) {
@@ -79,6 +80,11 @@ export class MidiParser {
               (view.getUint8(pos + 1) << 8) |
               view.getUint8(pos + 2);
             bpm = Math.round(60000000 / usPerBeat);
+          } else if (metaType === 0x58 && metaLen === 4) {
+            // Time signature: nn dd cc bb
+            const num = view.getUint8(pos);
+            const denomPow = view.getUint8(pos + 1);
+            meter = [num, Math.pow(2, denomPow)];
           }
           pos += metaLen;
         } else if (type === 0x90 || type === 0x80) {
@@ -133,6 +139,6 @@ export class MidiParser {
       }
     }
 
-    return { bpm, ticksPerBeat, notes };
+    return { bpm, ticksPerBeat, meter, notes };
   }
 }

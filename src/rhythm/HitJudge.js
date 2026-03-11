@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// HitJudge — timing & scoring for rhythm game
+// HitJudge — timing & scoring for music game
 // ─────────────────────────────────────────────
 // Maintains a queue of upcoming notes and judges
 // player input against the nearest expected note.
@@ -15,7 +15,7 @@ const TIERS = [
   { name: 'Good',    window: 200, points: 50  },
 ];
 
-const CHROMATIC_LETTERS = ['C', null, 'D', null, 'E', 'F', null, 'G', null, 'A', null, 'B'];
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 export class HitJudge {
   /**
@@ -48,17 +48,19 @@ export class HitJudge {
   }
 
   /**
-   * Convert MIDI note number to natural letter (or null for accidentals).
+   * Convert MIDI note number to its pitch name (e.g. 'C', 'C#', 'D#').
+   * @param {number} midiNote
+   * @returns {string}
    */
-  pitchLetter(midiNote) {
-    return CHROMATIC_LETTERS[midiNote % 12] ?? null;
+  pitchName(midiNote) {
+    return NOTE_NAMES[midiNote % 12];
   }
 
   /**
    * Player hit a note — find the closest unjudged note matching this pitch.
-   * @param {string} letter  — 'C', 'D', etc.
+   * @param {string} noteName  — e.g. 'C', 'C#', 'D#'
    */
-  judge(letter) {
+  judge(noteName) {
     const pos = this._engine.position;
     const notes = this._engine.notes;
     let bestIdx = -1;
@@ -67,8 +69,8 @@ export class HitJudge {
     for (let i = 0; i < notes.length; i++) {
       if (this._judged.has(i)) continue;
       const n = notes[i];
-      const nLetter = this.pitchLetter(n.note);
-      if (nLetter !== letter) continue;
+      const nName = this.pitchName(n.note);
+      if (nName !== noteName) continue;
 
       const delta = Math.abs(pos - n.time);
       // Only consider notes within the largest window

@@ -3,33 +3,43 @@
 // ─────────────────────────────────────────────
 // Draws a piano-roll style highway on a canvas.
 // Notes scroll right-to-left toward a hit zone
-// on the left edge. Each natural note gets a lane.
+// on the left edge. All 12 chromatic notes get a lane.
 // ─────────────────────────────────────────────
 
-// Map MIDI pitch class → lane index (natural notes only)
-const LANE_MAP = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
-const LANE_LABELS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-const LANE_COUNT = 7;
-const CHROMATIC = ['C', null, 'D', null, 'E', 'F', null, 'G', null, 'A', null, 'B'];
+// All 12 pitch classes in chromatic order
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const LANE_COUNT  = 12;
 
-const HIT_ZONE_X = 80;        // pixels from left edge
-const LOOK_AHEAD = 3000;      // ms of notes visible ahead
-const PIXELS_PER_MS = 0.25;   // scroll speed (canvas pixels per ms)
+// true = black key (visually darker lane)
+const IS_BLACK = [false, true, false, true, false, false, true, false, true, false, true, false];
+
+// Map note name → lane index (C=0 at bottom, B=11 at top)
+const LANE_MAP = {};
+NOTE_NAMES.forEach((name, i) => { LANE_MAP[name] = i; });
+
+const HIT_ZONE_X    = 80;        // pixels from left edge
+const LOOK_AHEAD    = 3000;      // ms of notes visible ahead
+const PIXELS_PER_MS = 0.25;      // scroll speed (canvas pixels per ms)
 
 const COLORS = {
-  bg: '#0d0d0d',
-  lane: '#141414',
-  laneLine: '#1a1a1a',
-  hitZone: '#333',
-  hitZoneActive: '#00ff88',
-  note: '#3a3a3a',
-  noteUpcoming: '#555',
-  perfect: '#00ff88',
-  great: '#88cc44',
-  good: '#ccaa22',
-  miss: '#ff4444',
-  label: '#444',
-  labelActive: '#00ff88',
+  bg:             '#0d0d0d',
+  laneWhite:      '#141414',
+  laneBlack:      '#0a0a0a',
+  laneLine:       '#1a1a1a',
+  hitZone:        '#333',
+  hitZoneActive:  '#00ff88',
+  note:           '#3a3a3a',
+  noteUpcoming:   '#555',
+  perfect:        '#00ff88',
+  great:          '#88cc44',
+  good:           '#ccaa22',
+  miss:           '#ff4444',
+  label:          '#444',
+  labelBlack:     '#2e2e2e',
+  labelActive:    '#00ff88',
+  beatLine:       '#1e1e1e',
+  barLine:        '#2a2a2a',
+  barLabel:       '#333',
 };
 
 export class Highway {
@@ -38,52 +48,57 @@ export class Highway {
    * @param {import('../core/EventBus.js').EventBus} bus
    */
   constructor(canvas, bus) {
-    this._canvas = canvas;
-    this._ctx = canvas.getContext('2d');
-    this._bus = bus;
-    this._noteStates = new Map(); // noteIndex → 'Perfect'|'Great'|'Good'|'miss'
-    this._activeLanes = new Set(); // currently pressed lanes
+    this._canvas      = canvas;
+    this._ctx         = canvas.getContext('2d');
+    this._bus         = bus;
+    this._noteStates  = new Map(); // noteIndex → tier | 'miss'
+    this._activeLanes = new Set(); // currently pressed note names
 
-    bus.on('hit:judge', ({ noteIndex, tier }) => {
-      this._noteStates.set(noteIndex, tier);
-    });
-    bus.on('hit:miss', ({ noteIndex }) => {
-      this._noteStates.set(noteIndex, 'miss');
-    });
+    this._bpm    = 120;
+    this._meter  = [4, 4];
+    this._countIn = 2000;
+
+    bus.on('hit:judge', ({ noteIndex, tier }) => this._noteStates.set(noteIndex, tier));
+    bus.on('hit:miss',  ({ noteIndex })        => this._noteStates.set(noteIndex, 'miss'));
+  }
+
+  /** Store song timing info for drawing beat/bar lines. */
+  setSongInfo(bpm, meter, countIn) {
+    this._bpm    = bpm;
+    this._meter  = meter || [4, 4];
+    this._countIn = countIn || 2000;
   }
 
   /** Mark a lane as actively pressed (for hit zone glow). */
-  setLaneActive(letter, active) {
-    if (active) this._activeLanes.add(letter);
-    else this._activeLanes.delete(letter);
+  setLaneActive(noteName, active) {
+    if (active) this._activeLanes.add(noteName);
+    else        this._activeLanes.delete(noteName);
   }
 
   /**
    * Draw one frame.
    * @param {number} position  — current song time in ms
-   * @param {Array} notes      — full note array from SongEngine
+   * @param {Array}  notes     — full note array from SongEngine
    */
   draw(position, notes) {
-    const ctx = this._ctx;
-    const W = this._canvas.width;
-    const H = this._canvas.height;
+    const ctx  = this._ctx;
+    const W    = this._canvas.width;
+    const H    = this._canvas.height;
     const laneH = H / LANE_COUNT;
 
     // ── Background ──
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, W, H);
 
-    // ── Lane backgrounds + dividers ──
-    // Lanes render bottom-to-top (C at bottom, B at top) — piano/ascending order
+    // ── Lane backgrounds + dividers (C at bottom → B at top) ──
     for (let i = 0; i < LANE_COUNT; i++) {
-      const row = LANE_COUNT - 1 - i;   // display row: lane 0 (C) → bottom row
+      const row = LANE_COUNT - 1 - i;   // lane 0 (C) → bottom row
       const y   = row * laneH;
-      ctx.fillStyle = row % 2 === 0 ? COLORS.lane : COLORS.bg;
+      ctx.fillStyle = IS_BLACK[i] ? COLORS.laneBlack : COLORS.laneWhite;
       ctx.fillRect(HIT_ZONE_X, y, W - HIT_ZONE_X, laneH);
 
-      // Divider line
       ctx.strokeStyle = COLORS.laneLine;
-      ctx.lineWidth = 1;
+      ctx.lineWidth   = 1;
       ctx.beginPath();
       ctx.moveTo(HIT_ZONE_X, y);
       ctx.lineTo(W, y);
@@ -91,34 +106,38 @@ export class Highway {
     }
 
     // ── Lane labels (left side) ──
-    ctx.font = 'bold 14px "Courier New", monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.font          = 'bold 11px "Courier New", monospace';
+    ctx.textAlign     = 'center';
+    ctx.textBaseline  = 'middle';
     for (let i = 0; i < LANE_COUNT; i++) {
-      const label = LANE_LABELS[i];
+      const name  = NOTE_NAMES[i];
       const row   = LANE_COUNT - 1 - i;
-      ctx.fillStyle = this._activeLanes.has(label) ? COLORS.labelActive : COLORS.label;
-      ctx.fillText(label, HIT_ZONE_X / 2, row * laneH + laneH / 2);
+      const isAct = this._activeLanes.has(name);
+      ctx.fillStyle = isAct
+        ? COLORS.labelActive
+        : (IS_BLACK[i] ? COLORS.labelBlack : COLORS.label);
+      ctx.fillText(name, HIT_ZONE_X / 2, row * laneH + laneH / 2);
     }
+
+    // ── Beat / bar lines ──
+    this._drawBeatLines(ctx, position, W, H);
 
     // ── Hit zone line ──
     ctx.strokeStyle = this._activeLanes.size > 0 ? COLORS.hitZoneActive : COLORS.hitZone;
-    ctx.lineWidth = 2;
+    ctx.lineWidth   = 2;
     ctx.beginPath();
     ctx.moveTo(HIT_ZONE_X, 0);
     ctx.lineTo(HIT_ZONE_X, H);
     ctx.stroke();
 
     // ── Notes ──
-    const pad = 3;
+    const pad = 2;
     for (let i = 0; i < notes.length; i++) {
-      const n = notes[i];
-      const letter = CHROMATIC[n.note % 12];
-      if (!letter) continue;
-      const lane = LANE_MAP[letter];
+      const n    = notes[i];
+      const name = NOTE_NAMES[n.note % 12];
+      const lane = LANE_MAP[name];
       if (lane === undefined) continue;
 
-      // X position: note's time relative to hit zone
       const dx = n.time - position;
       if (dx > LOOK_AHEAD || dx + n.duration / (1 / PIXELS_PER_MS) < -500) continue;
 
@@ -128,20 +147,19 @@ export class Highway {
       const y   = row * laneH + pad;
       const h   = laneH - pad * 2;
 
-      // Color based on state
       const state = this._noteStates.get(i);
-      if (state === 'Perfect') ctx.fillStyle = COLORS.perfect;
-      else if (state === 'Great') ctx.fillStyle = COLORS.great;
-      else if (state === 'Good') ctx.fillStyle = COLORS.good;
-      else if (state === 'miss') ctx.fillStyle = COLORS.miss;
+      if      (state === 'Perfect') ctx.fillStyle = COLORS.perfect;
+      else if (state === 'Great')   ctx.fillStyle = COLORS.great;
+      else if (state === 'Good')    ctx.fillStyle = COLORS.good;
+      else if (state === 'miss')    ctx.fillStyle = COLORS.miss;
       else ctx.fillStyle = dx <= 0 ? COLORS.note : COLORS.noteUpcoming;
 
-      // Draw rounded rect
-      const r = 4;
+      // Rounded rect
+      const r = 3;
       ctx.beginPath();
       ctx.moveTo(x + r, y);
       ctx.lineTo(x + w - r, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.quadraticCurveTo(x + w, y,     x + w, y + r);
       ctx.lineTo(x + w, y + h - r);
       ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
       ctx.lineTo(x + r, y + h);
@@ -150,6 +168,48 @@ export class Highway {
       ctx.quadraticCurveTo(x, y, x + r, y);
       ctx.closePath();
       ctx.fill();
+    }
+  }
+
+  // ── Beat / bar line rendering ──────────────────
+  _drawBeatLines(ctx, position, W, H) {
+    const msPerBeat  = 60000 / this._bpm;
+    const beatsPerBar = this._meter[0];
+
+    const minTime  = position - 200;
+    const maxTime  = position + LOOK_AHEAD;
+    const firstBeat = Math.max(0, Math.floor(minTime / msPerBeat));
+    const lastBeat  = Math.ceil(maxTime / msPerBeat);
+
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    ctx.font         = '9px "Courier New", monospace';
+
+    for (let b = firstBeat; b <= lastBeat; b++) {
+      const beatTime  = b * msPerBeat;
+      const dx        = beatTime - position;
+      const x         = HIT_ZONE_X + dx * PIXELS_PER_MS;
+      if (x < HIT_ZONE_X || x > W) continue;
+
+      const beatInBar = b % beatsPerBar;
+      const isBarLine = beatInBar === 0;
+
+      ctx.strokeStyle = isBarLine ? COLORS.barLine  : COLORS.beatLine;
+      ctx.lineWidth   = isBarLine ? 1.5 : 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+
+      if (isBarLine) {
+        const bar = Math.floor(b / beatsPerBar);
+        const countInBeats  = Math.ceil(this._countIn / msPerBeat);
+        const displayBar    = bar - Math.floor(countInBeats / beatsPerBar) + 1;
+        if (displayBar >= 1) {
+          ctx.fillStyle = COLORS.barLabel;
+          ctx.fillText(`${displayBar}`, x, 3);
+        }
+      }
     }
   }
 }

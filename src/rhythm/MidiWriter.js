@@ -13,11 +13,18 @@ export class MidiWriter {
    * @param {Array<{note: number, beats: number}>} opts.notes
    * @param {number} [opts.velocity=100]
    * @param {number} [opts.ticksPerBeat=480]
+   * @param {number[]} [opts.meter=[4,4]]  — time signature [numerator, denominator]
    * @returns {ArrayBuffer}
    */
-  static build({ bpm, notes, velocity = 100, ticksPerBeat = 480 }) {
+  static build({ bpm, notes, velocity = 100, ticksPerBeat = 480, meter = [4, 4] }) {
     const usPerBeat = Math.round(60000000 / bpm);
     const track = [];
+
+    // Time signature meta event (delta 0)
+    // FF 58 04 nn dd cc bb
+    //   nn = numerator, dd = log2(denominator), cc = MIDI clocks/click, bb = 32nds/beat
+    const denomPow = Math.log2(meter[1]);
+    track.push(0x00, 0xFF, 0x58, 0x04, meter[0], denomPow, 0x18, 0x08);
 
     // Tempo meta event (delta 0)
     track.push(0x00, 0xFF, 0x51, 0x03);

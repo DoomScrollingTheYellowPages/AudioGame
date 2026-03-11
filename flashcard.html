@@ -172,14 +172,20 @@
       border: 1px solid #2a2a2a;
       color: #888;
       font-family: inherit;
-      font-size: 16px;
+      font-size: 13px;
       font-weight: bold;
-      width: 52px;
+      width: 46px;
       height: 52px;
       border-radius: 6px;
       cursor: pointer;
-      letter-spacing: 1px;
+      letter-spacing: 0;
       transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .note-btn[data-black="true"] {
+      background: #111;
+      color: #555;
+      height: 44px;
+      font-size: 11px;
     }
     .note-btn:hover {
       border-color: #00ff88;
@@ -236,6 +242,32 @@
       gap: 6px;
     }
     .legend-note { color: #333; min-width: 28px; }
+
+    /* ── Play-note button ── */
+    #btn-play-note {
+      position: fixed;
+      top: 160px;
+      right: 16px;
+      width: 41px;
+      height: 41px;
+      border-radius: 50%;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #555;
+      font-size: 19px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+      line-height: 1;
+    }
+    #btn-play-note:hover {
+      border-color: #00ff88;
+      color: #00ff88;
+      background: #161f18;
+    }
+    #btn-play-note:active { background: #0f1a12; }
   </style>
 </head>
 <body>
@@ -273,11 +305,16 @@
   <p class="prompt">Play on MIDI keyboard · sing/play into mic · or click a note</p>
   <div class="note-buttons">
     <button class="note-btn" data-note="C">C</button>
+    <button class="note-btn" data-note="C#" data-black="true">C&#9839;</button>
     <button class="note-btn" data-note="D">D</button>
+    <button class="note-btn" data-note="D#" data-black="true">D&#9839;</button>
     <button class="note-btn" data-note="E">E</button>
     <button class="note-btn" data-note="F">F</button>
+    <button class="note-btn" data-note="F#" data-black="true">F&#9839;</button>
     <button class="note-btn" data-note="G">G</button>
+    <button class="note-btn" data-note="G#" data-black="true">G&#9839;</button>
     <button class="note-btn" data-note="A">A</button>
+    <button class="note-btn" data-note="A#" data-black="true">A&#9839;</button>
     <button class="note-btn" data-note="B">B</button>
   </div>
 
@@ -286,23 +323,36 @@
 
   <!-- ── Reference legend ── -->
   <section class="legend">
-    <div class="legend-title">Treble clef reference — C4 to A5</div>
+    <div class="legend-title">Treble clef reference — C4 to A♯5 (all 12 tones)</div>
     <div class="legend-grid">
       <div class="legend-item"><span class="legend-note">C4</span><span>ledger line below</span></div>
+      <div class="legend-item"><span class="legend-note">C♯4</span><span>ledger line below + ♯</span></div>
       <div class="legend-item"><span class="legend-note">D4</span><span>space below E4</span></div>
+      <div class="legend-item"><span class="legend-note">D♯4</span><span>space below E4 + ♯</span></div>
       <div class="legend-item"><span class="legend-note">E4</span><span>line 1 (bottom)</span></div>
       <div class="legend-item"><span class="legend-note">F4</span><span>space 1</span></div>
+      <div class="legend-item"><span class="legend-note">F♯4</span><span>space 1 + ♯</span></div>
       <div class="legend-item"><span class="legend-note">G4</span><span>line 2</span></div>
+      <div class="legend-item"><span class="legend-note">G♯4</span><span>line 2 + ♯</span></div>
       <div class="legend-item"><span class="legend-note">A4</span><span>space 2</span></div>
+      <div class="legend-item"><span class="legend-note">A♯4</span><span>space 2 + ♯</span></div>
       <div class="legend-item"><span class="legend-note">B4</span><span>line 3 (middle)</span></div>
       <div class="legend-item"><span class="legend-note">C5</span><span>space 3</span></div>
+      <div class="legend-item"><span class="legend-note">C♯5</span><span>space 3 + ♯</span></div>
       <div class="legend-item"><span class="legend-note">D5</span><span>line 4</span></div>
+      <div class="legend-item"><span class="legend-note">D♯5</span><span>line 4 + ♯</span></div>
       <div class="legend-item"><span class="legend-note">E5</span><span>space 4</span></div>
       <div class="legend-item"><span class="legend-note">F5</span><span>line 5 (top)</span></div>
+      <div class="legend-item"><span class="legend-note">F♯5</span><span>line 5 + ♯</span></div>
       <div class="legend-item"><span class="legend-note">G5</span><span>space above top</span></div>
+      <div class="legend-item"><span class="legend-note">G♯5</span><span>space above + ♯</span></div>
       <div class="legend-item"><span class="legend-note">A5</span><span>first ledger above</span></div>
+      <div class="legend-item"><span class="legend-note">A♯5</span><span>first ledger above + ♯</span></div>
     </div>
   </section>
+
+  <!-- ── Play note button ── -->
+  <button id="btn-play-note" title="Play note">🔊</button>
 
   <script type="module" src="./src/flashcard-main.js"></script>
 </body>

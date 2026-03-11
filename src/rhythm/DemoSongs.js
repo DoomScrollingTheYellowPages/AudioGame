@@ -23,6 +23,7 @@ const SONGS = {
   'c-scale': {
     name: 'C Scale (C3–C4)',
     bpm: 80,
+    meter: [4, 4],
     notes: buildSequence(
       // C3=48 up to C4=60, repeated twice
       [...[48, 50, 52, 53, 55, 57, 59, 60], ...[48, 50, 52, 53, 55, 57, 59, 60]],
@@ -33,6 +34,7 @@ const SONGS = {
   'g-scale': {
     name: 'G–D Scale (G3–D4)',
     bpm: 90,
+    meter: [4, 4],
     notes: buildSequence(
       // Natural notes only: G3 A3 B3 C4 D4 E4 F4 G4 — x2
       [...[55, 57, 59, 60, 62, 64, 65, 67], ...[55, 57, 59, 60, 62, 64, 65, 67]],
@@ -43,6 +45,7 @@ const SONGS = {
   'mary-had': {
     name: 'Mary Had a Little Lamb',
     bpm: 100,
+    meter: [4, 4],
     notes: buildSequence(
       // E D C D  E E E  D D D  E G G
       // E D C D  E E E E  D D E D C
@@ -58,6 +61,7 @@ const SONGS = {
   'ode-to-joy': {
     name: 'Ode to Joy',
     bpm: 108,
+    meter: [4, 4],
     notes: buildSequence(
       // Beethoven — first 16 bars melody (natural notes only, key of C)
       // E E F G  G F E D  C C D E  E D D
@@ -73,6 +77,7 @@ const SONGS = {
   'arpeggios': {
     name: 'C-F-G Arpeggios',
     bpm: 120,
+    meter: [4, 4],
     notes: (() => {
       // C major: C E G C', F major: F A C' F', G major: G B D' G'
       const patterns = [
@@ -95,9 +100,92 @@ const SONGS = {
     })(),
   },
 
+  'capricho-arabe': {
+    name: 'Capricho Árabe (Tárrega)',
+    bpm: 72,
+    meter: [3, 4],
+    notes: (() => {
+      // Simplified from Francisco Tárrega's Capricho Árabe (Serenata)
+      // Cantabile theme — D natural minor, natural notes only (B instead of Bb)
+      // Format: [midiNote, beats]  (1 beat = quarter note at 72 BPM)
+      const ms = 60000 / 72;
+      const seq = [
+        // ── Phrase A1 — descending ──
+        [69, 1.5], [67, 0.5], [65, 1],   // A. G | F
+        [64, 1.5], [62, 0.5], [60, 1],   // E. D | C
+        [62, 1.5], [64, 0.5], [65, 1],   // D. E | F
+        [64, 2],   [62, 1],              // E--  | D
+        // ── Phrase A2 — descending then rising ──
+        [69, 1.5], [67, 0.5], [65, 1],
+        [64, 1.5], [62, 0.5], [60, 1],
+        [62, 1.5], [64, 0.5], [65, 1],
+        [67, 2],   [69, 1],              // G--  | A
+        // ── Phrase B — ascent to C5 ──
+        [71, 1.5], [72, 0.5], [74, 1],   // B. C5| D5
+        [72, 1.5], [71, 0.5], [69, 1],   // C5.B | A
+        [67, 1.5], [69, 0.5], [71, 1],   // G. A | B
+        [72, 3],                          // C5---
+        // ── Phrase C — descent to D4 ──
+        [71, 1.5], [69, 0.5], [67, 1],   // B. A | G
+        [65, 1.5], [64, 0.5], [62, 1],   // F. E | D
+        [64, 1.5], [62, 0.5], [60, 1],   // E. D | C
+        [62, 3],                          // D---
+      ];
+      const notes = [];
+      let t = 0;
+      for (const [note, beats] of seq) {
+        notes.push({ time: t, note, velocity: 90, duration: ms * beats * 0.9 });
+        t += ms * beats;
+      }
+      return notes;
+    })(),
+  },
+
+  'fur-elise': {
+    name: 'Für Elise (Beethoven)',
+    bpm: 108,
+    meter: [3, 4],
+    notes: (() => {
+      // Simplified from Beethoven's Für Elise (WoO 59)
+      // D# → D, G# → G for natural-notes-only mode
+      // Format: [midiNote, beats]  (0.5 beat = eighth note at 108 BPM)
+      const ms = 60000 / 108;
+      const seq = [
+        // ── Main theme ──
+        [76, 0.5], [74, 0.5], [76, 0.5], [74, 0.5], [76, 0.5],
+        [71, 0.5], [74, 0.5], [72, 0.5],
+        [69, 1],   [60, 0.5], [64, 0.5], [69, 0.5], [71, 0.5],
+        [64, 0.5], [67, 0.5], [71, 0.5], [72, 1],
+        // ── Repeat main theme ──
+        [76, 0.5], [74, 0.5], [76, 0.5], [74, 0.5], [76, 0.5],
+        [71, 0.5], [74, 0.5], [72, 0.5],
+        [69, 1],   [60, 0.5], [64, 0.5], [69, 0.5], [71, 0.5],
+        [69, 1.5],
+        // ── Section B ──
+        [69, 0.5], [64, 0.5], [67, 0.5], [64, 0.5], [60, 0.5], [64, 0.5],
+        [62, 1],   [55, 0.5], [59, 0.5], [62, 0.5], [64, 0.5],
+        [65, 1],   [60, 0.5], [64, 0.5], [65, 0.5], [67, 0.5],
+        [69, 1.5],
+        // ── Return to main theme ──
+        [76, 0.5], [74, 0.5], [76, 0.5], [74, 0.5], [76, 0.5],
+        [71, 0.5], [74, 0.5], [72, 0.5],
+        [69, 1],   [60, 0.5], [64, 0.5], [69, 0.5], [71, 0.5],
+        [69, 1.5],
+      ];
+      const notes = [];
+      let t = 0;
+      for (const [note, beats] of seq) {
+        notes.push({ time: t, note, velocity: 90, duration: ms * beats * 0.9 });
+        t += ms * beats;
+      }
+      return notes;
+    })(),
+  },
+
   'speed-drill': {
     name: 'Speed Drill (C–G)',
     bpm: 140,
+    meter: [4, 4],
     notes: (() => {
       // Fast alternating patterns to challenge timing
       const pattern = [
@@ -136,6 +224,6 @@ export function songToMidiBlob(id) {
     note: n.note,
     beats: n.duration / msPerBeat,
   }));
-  const buf = MidiWriter.build({ bpm: song.bpm, notes: midiNotes });
+  const buf = MidiWriter.build({ bpm: song.bpm, notes: midiNotes, meter: song.meter });
   return new Blob([buf], { type: 'audio/midi' });
 }

@@ -1,6 +1,6 @@
 # AudioGame
 
-Zero-dependency browser app for music education — flashcards, rhythm games, and audio/MIDI monitoring. Pure HTML/JS/CSS with native ES modules, Web Audio API, and Web MIDI API. No build system, no package.json.
+Zero-dependency browser app for music education — flashcards, music games, and audio/MIDI monitoring. Pure HTML/JS/CSS with native ES modules, Web Audio API, and Web MIDI API. No build system, no package.json.
 
 ## Dev Server
 
@@ -76,7 +76,7 @@ All canvas modules follow:
 
 - **Natural notes only** — no sharps/flats in any game mode
 - **Pitch matching is pitch-class only** — any octave of the correct letter counts
-- Rhythm game note buttons and highway lanes: **C D E F G A B ascending** (C at bottom)
+- Music game note buttons and highway lanes: **C D E F G A B ascending** (C at bottom)
 - Keyboard mapping: `a=C s=D d=E f=F g=G h=A j=B`
 - Hit windows: Perfect ≤50ms, Great ≤100ms, Good ≤200ms
 - Combo multiplier: `1 + floor(combo/10)`, max 4x
@@ -105,7 +105,7 @@ Two systems coexist:
 index.html                    Main nav (3 game cards)
 input-config.html             Audio + MIDI monitor
 flashcard.html                Note identification game
-rhythm.html                   Guitar Hero-style rhythm game
+rhythm.html                   Guitar Hero-style music game
 src/
   main.js                     Entry: input-config
   flashcard-main.js           Entry: flashcard
