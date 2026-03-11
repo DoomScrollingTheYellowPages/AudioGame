@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Audio + MIDI Monitor</title>
+  <title>AudioGame</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -11,300 +11,95 @@
       background: #0d0d0d;
       color: #e0e0e0;
       font-family: 'Courier New', monospace;
-      font-size: 13px;
-      height: 100dvh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      padding: 12px;
+      align-items: center;
+      justify-content: center;
+      gap: 48px;
+      padding: 24px;
     }
 
-    h2 {
+    .site-title {
       font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 2px;
-      color: #555;
-      margin-bottom: 8px;
+      letter-spacing: 4px;
+      color: #333;
     }
 
-    /* ── Layout ── */
-    .panels {
+    .nav-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      flex: 1;
-      min-height: 0;
+      gap: 16px;
+      width: 100%;
+      max-width: 560px;
     }
 
-    .panel {
+    .nav-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
       background: #141414;
       border: 1px solid #222;
-      border-radius: 6px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
-
-    /* ── Audio panel ── */
-    #start-audio {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #aaa;
-      padding: 6px 14px;
-      border-radius: 4px;
+      border-radius: 8px;
+      padding: 28px 24px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s, background 0.2s;
       cursor: pointer;
-      font-family: inherit;
-      font-size: 12px;
-      width: fit-content;
-      margin-bottom: 10px;
-      transition: border-color 0.2s, color 0.2s;
     }
-    #start-audio:hover { border-color: #00ff88; color: #00ff88; }
-    #start-audio.active { border-color: #00ff88; color: #00ff88; }
-
-    .audio-meta {
-      display: flex;
-      gap: 16px;
-      margin-top: 8px;
-      color: #444;
-      font-size: 11px;
+    .nav-card:hover {
+      border-color: #00ff88;
+      background: #161f18;
     }
-    .audio-meta span { color: #00ff88; }
+    .nav-card:hover .nav-icon { color: #00ff88; }
+    .nav-card:hover .nav-label { color: #e0e0e0; }
 
-    /* ── MIDI panel ── */
-    .midi-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
+    .nav-icon {
+      font-size: 28px;
+      color: #333;
+      transition: color 0.2s;
+      line-height: 1;
     }
 
-    #midi-device-select {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #aaa;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-family: inherit;
-      font-size: 12px;
-      flex: 1;
-    }
-
-    .midi-status {
-      font-size: 11px;
-      color: #555;
-    }
-    .midi-status.ok  { color: #00ff88; }
-    .midi-status.err { color: #ff4444; }
-
-    /* Mini keyboard */
-    .keyboard-wrap {
-      position: relative;
-      height: 60px;
-      margin-bottom: 10px;
-      overflow: hidden;
-      border-radius: 3px;
-      background: #0a0a0a;
-      border: 1px solid #1e1e1e;
-    }
-
-    /* CC bars */
-    .cc-section { margin-bottom: 8px; }
-    .cc-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-      gap: 4px;
-      max-height: 60px;
-      overflow-y: auto;
-    }
-    .cc-bar-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .cc-label {
-      font-size: 9px;
-      color: #555;
-      display: flex;
-      justify-content: space-between;
-    }
-    .cc-label .cc-val { color: #aaa; }
-    .cc-track {
-      height: 4px;
-      background: #1e1e1e;
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .cc-fill {
-      height: 100%;
-      background: #4488ff;
-      border-radius: 2px;
-      transition: width 0.05s;
-    }
-
-    /* Message log */
-    .log-wrap {
-      flex: 1;
-      overflow-y: auto;
-      background: #0a0a0a;
-      border: 1px solid #1e1e1e;
-      border-radius: 3px;
-      padding: 6px;
-      min-height: 0;
-    }
-    .log-wrap::-webkit-scrollbar { width: 4px; }
-    .log-wrap::-webkit-scrollbar-track { background: transparent; }
-    .log-wrap::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
-
-    .log-entry {
-      display: flex;
-      gap: 8px;
-      padding: 2px 0;
-      border-bottom: 1px solid #111;
-      font-size: 11px;
-      animation: fadeIn 0.1s ease;
-    }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; } }
-
-    .log-time { color: #333; min-width: 48px; }
-    .log-type { min-width: 60px; font-weight: bold; }
-    .log-type.note-on  { color: #00ff88; }
-    .log-type.note-off { color: #ff6644; }
-    .log-type.cc       { color: #4488ff; }
-    .log-type.other    { color: #888; }
-    .log-body { color: #ccc; }
-
-    /* ── Tuner ── */
-    .tuner {
-      border-top: 1px solid #1e1e1e;
-      margin-top: 8px;
-      padding-top: 10px;
-    }
-
-    .tuner-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .tuner-note {
-      font-size: 22px;
+    .nav-label {
+      font-size: 13px;
       font-weight: bold;
-      min-width: 42px;
-      text-align: center;
+      color: #888;
+      letter-spacing: 1px;
+      transition: color 0.2s;
+    }
+
+    .nav-desc {
+      font-size: 10px;
       color: #444;
-      letter-spacing: 1px;
-      transition: color 0.1s;
+      line-height: 1.5;
     }
 
-    .tuner-meter-area {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .tuner-acc {
-      font-size: 12px;
-      color: #333;
-      user-select: none;
-    }
-
-    .tuner-track {
-      flex: 1;
-      height: 14px;
-      background: #0a0a0a;
-      border: 1px solid #1e1e1e;
-      border-radius: 7px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .tuner-center-mark {
-      position: absolute;
-      left: 50%;
-      top: 2px;
-      bottom: 2px;
-      width: 1px;
-      background: #2a2a2a;
-      transform: translateX(-50%);
-    }
-
-    .tuner-needle {
-      position: absolute;
-      top: 2px;
-      bottom: 2px;
-      width: 4px;
-      background: #2a2a2a;
-      border-radius: 2px;
-      transform: translateX(-50%);
-      left: 50%;
-      transition: left 0.08s ease, background 0.1s;
-    }
-
-    .tuner-freq {
-      font-size: 10px;
-      color: #555;
-      min-width: 58px;
-      text-align: right;
-    }
-
-    .tuner-cents {
-      text-align: center;
-      font-size: 10px;
-      color: #333;
-      margin-top: 4px;
-      letter-spacing: 1px;
-      transition: color 0.1s;
-    }
-
-    @media (max-width: 600px) {
-      .panels { grid-template-columns: 1fr; }
+    @media (max-width: 480px) {
+      .nav-grid { grid-template-columns: 1fr; max-width: 300px; }
     }
   </style>
 </head>
 <body>
 
-  <div class="panels">
+  <span class="site-title">AudioGame</span>
 
-    <!-- ── Audio Panel ── -->
-    <div class="panel" id="audio-panel">
-      <h2>Audio Input</h2>
-      <button id="start-audio">Enable Microphone</button>
-      <!-- Oscilloscope canvas + meta are mounted here by Oscilloscope.js -->
-      <!-- Tuner is mounted here by Tuner.js -->
-      <div id="tuner-wrap"></div>
-    </div>
+  <nav class="nav-grid">
 
-    <!-- ── MIDI Panel ── -->
-    <div class="panel">
-      <h2>MIDI Input</h2>
+    <a class="nav-card" href="./flashcard.html">
+      <div class="nav-icon">♩</div>
+      <div class="nav-label">Flashcard Game</div>
+      <div class="nav-desc">Read notes on a staff.<br>Identify them by ear or keyboard.</div>
+    </a>
 
-      <div class="midi-header">
-        <select id="midi-device-select"><option>— no devices —</option></select>
-        <span class="midi-status" id="midi-status">not connected</span>
-      </div>
+    <a class="nav-card" href="./input-config.html">
+      <div class="nav-icon">⚙</div>
+      <div class="nav-label">Input Configuration</div>
+      <div class="nav-desc">Configure microphone and MIDI device inputs.</div>
+    </a>
 
-      <div class="keyboard-wrap" id="keyboard-wrap">
-        <!-- KeyboardDisplay canvas mounted here -->
-      </div>
+  </nav>
 
-      <div class="cc-section">
-        <h2>CC</h2>
-        <div class="cc-grid" id="cc-grid">
-          <!-- CCDisplay bars appear here dynamically -->
-        </div>
-      </div>
-
-      <h2 style="margin-top:8px">Messages</h2>
-      <div class="log-wrap" id="midi-log">
-        <!-- MIDILog entries prepended here -->
-      </div>
-    </div>
-
-  </div>
-
-  <script type="module" src="./src/main.js"></script>
 </body>
 </html>

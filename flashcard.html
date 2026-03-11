@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flashcard Game — AudioGame</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d0d;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      gap: 0;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 16px;
+    }
+
+    .back-link {
+      color: #555;
+      text-decoration: none;
+      font-size: 12px;
+      border: 1px solid #222;
+      border-radius: 4px;
+      padding: 4px 10px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .back-link:hover { color: #00ff88; border-color: #00ff88; }
+
+    .page-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #444;
+    }
+
+    #midi-status {
+      font-size: 10px;
+      color: #333;
+      letter-spacing: 1px;
+    }
+    #midi-status[data-state="ok"]  { color: #00ff88; }
+    #midi-status[data-state="err"] { color: #ff4444; }
+
+    /* ── Score bar ── */
+    .score-bar {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      gap: 24px;
+      padding-bottom: 16px;
+      font-size: 12px;
+      color: #444;
+    }
+    #score  { color: #e0e0e0; }
+    #streak { color: #888; }
+
+    /* ── Staff canvas ── */
+    .staff-wrap {
+      width: 100%;
+      max-width: 600px;
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    #staff-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* ── Feedback ── */
+    #feedback {
+      height: 28px;
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      color: #444;
+      margin-bottom: 20px;
+      text-align: center;
+      transition: color 0.15s;
+    }
+    #feedback[data-state="correct"] { color: #00ff88; }
+    #feedback[data-state="wrong"]   { color: #ff4444; }
+
+    /* ── Note buttons ── */
+    .prompt {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #333;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .note-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .note-btn {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #888;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: bold;
+      width: 52px;
+      height: 52px;
+      border-radius: 6px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .note-btn:hover {
+      border-color: #00ff88;
+      color: #00ff88;
+      background: #161f18;
+    }
+    .note-btn:active {
+      background: #0f1a12;
+    }
+
+    /* ── Next button ── */
+    #btn-next {
+      display: none;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #aaa;
+      font-family: inherit;
+      font-size: 12px;
+      padding: 8px 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    #btn-next:hover { border-color: #00ff88; color: #00ff88; }
+
+    /* ── Legend ── */
+    .legend {
+      margin-top: 40px;
+      width: 100%;
+      max-width: 600px;
+      border-top: 1px solid #1a1a1a;
+      padding-top: 20px;
+    }
+
+    .legend-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #2a2a2a;
+      margin-bottom: 10px;
+    }
+
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 4px;
+      font-size: 10px;
+      color: #2a2a2a;
+    }
+
+    .legend-item {
+      display: flex;
+      gap: 6px;
+    }
+    .legend-note { color: #333; min-width: 28px; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <header class="page-header">
+    <a class="back-link" href="./index.html">← Back</a>
+    <span class="page-title">Note Reading</span>
+    <span id="midi-status">MIDI —</span>
+  </header>
+
+  <!-- ── Score ── -->
+  <div class="score-bar">
+    <span id="score">0 / 0  (0%)</span>
+    <span id="streak">streak  0</span>
+  </div>
+
+  <!-- ── Staff ── -->
+  <div class="staff-wrap">
+    <canvas id="staff-canvas" width="560" height="200"></canvas>
+  </div>
+
+  <!-- ── Feedback ── -->
+  <div id="feedback" data-state=""></div>
+
+  <!-- ── Note buttons ── -->
+  <p class="prompt">Play on keyboard · or click a note name</p>
+  <div class="note-buttons">
+    <button class="note-btn" data-note="C">C</button>
+    <button class="note-btn" data-note="D">D</button>
+    <button class="note-btn" data-note="E">E</button>
+    <button class="note-btn" data-note="F">F</button>
+    <button class="note-btn" data-note="G">G</button>
+    <button class="note-btn" data-note="A">A</button>
+    <button class="note-btn" data-note="B">B</button>
+  </div>
+
+  <!-- ── Next button ── -->
+  <button id="btn-next">Next →</button>
+
+  <!-- ── Reference legend ── -->
+  <section class="legend">
+    <div class="legend-title">Treble clef reference — C4 to A5</div>
+    <div class="legend-grid">
+      <div class="legend-item"><span class="legend-note">C4</span><span>ledger line below</span></div>
+      <div class="legend-item"><span class="legend-note">D4</span><span>space below E4</span></div>
+      <div class="legend-item"><span class="legend-note">E4</span><span>line 1 (bottom)</span></div>
+      <div class="legend-item"><span class="legend-note">F4</span><span>space 1</span></div>
+      <div class="legend-item"><span class="legend-note">G4</span><span>line 2</span></div>
+      <div class="legend-item"><span class="legend-note">A4</span><span>space 2</span></div>
+      <div class="legend-item"><span class="legend-note">B4</span><span>line 3 (middle)</span></div>
+      <div class="legend-item"><span class="legend-note">C5</span><span>space 3</span></div>
+      <div class="legend-item"><span class="legend-note">D5</span><span>line 4</span></div>
+      <div class="legend-item"><span class="legend-note">E5</span><span>space 4</span></div>
+      <div class="legend-item"><span class="legend-note">F5</span><span>line 5 (top)</span></div>
+      <div class="legend-item"><span class="legend-note">G5</span><span>space above top</span></div>
+      <div class="legend-item"><span class="legend-note">A5</span><span>first ledger above</span></div>
+    </div>
+  </section>
+
+  <script type="module" src="./src/flashcard-main.js"></script>
+</body>
+</html>
