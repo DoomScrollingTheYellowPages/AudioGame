@@ -165,9 +165,23 @@ export class Synth {
     osc.stop(now + duration + 0.01);
   }
 
-  /** Stop all currently sounding voices immediately. */
+  /** Stop all voices with a short release (normal song-end). */
   allNotesOff() {
     for (const [note] of this._voices) this.noteOff(note);
+  }
+
+  /** Immediately silence all voices — no release ramp (use for Stop button). */
+  hardStop() {
+    if (!this._ctx) return;
+    const now = this._ctx.currentTime;
+    for (const [, voice] of this._voices) {
+      voice.gain.gain.cancelScheduledValues(now);
+      voice.gain.gain.setValueAtTime(0, now);
+      for (const o of voice.oscs) {
+        try { o.stop(now); } catch (_) { /* already stopped */ }
+      }
+    }
+    this._voices.clear();
   }
 
   // ── Cleanup ─────────────────────────────────

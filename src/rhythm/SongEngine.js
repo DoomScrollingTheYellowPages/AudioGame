@@ -75,6 +75,22 @@ export class SongEngine {
     this._position = 0;
   }
 
+  /**
+   * Seek to a position (ms). Safe to call while running or stopped.
+   * @param {number} positionMs
+   */
+  seek(positionMs) {
+    this._position = Math.max(0, Math.min(positionMs, this._songDuration));
+    if (this._running) {
+      this._startTime = performance.now() - this._position;
+    }
+  }
+
+  /** ms per bar at current BPM/meter */
+  get msPerBar() {
+    return (60000 / this._bpm) * this._meter[0];
+  }
+
   _tick() {
     if (!this._running) return;
 

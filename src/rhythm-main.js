@@ -455,7 +455,7 @@ function clearSynth() {
   _playedNotes.clear();
   for (const [, tid] of _activeNotes) clearTimeout(tid);
   _activeNotes.clear();
-  synth.allNotesOff();
+  synth.hardStop();
 }
 
 function setPlaying(active) {
