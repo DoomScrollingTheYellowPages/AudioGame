@@ -158,6 +158,19 @@
       white-space: nowrap;
     }
 
+    #midi-track-select {
+      display: none;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #00ff88;
+      font-family: inherit;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      max-width: 140px;
+    }
+    #midi-track-select.visible { display: inline-block; }
+
     /* ── Playback controls ── */
     .playback-bar {
       width: 100%;
@@ -486,6 +499,7 @@
     <label class="midi-upload-label" for="midi-upload">&#128190; Load .mid</label>
     <input type="file" id="midi-upload" accept=".mid,.midi" hidden />
     <span id="midi-upload-name" class="midi-file-name"></span>
+    <select id="midi-track-select"></select>
     <div class="view-toggle">
       <button class="view-btn active" data-view="piano">&#127929; Piano</button>
       <button class="view-btn"        data-view="staff">&#119070; Staff</button>

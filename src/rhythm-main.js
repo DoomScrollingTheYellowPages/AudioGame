@@ -191,14 +191,39 @@ loadSelectedSong();
 buildBeatPips();
 
 // ── MIDI file upload ──
-const midiUpload     = document.getElementById('midi-upload');
-const midiUploadName = document.getElementById('midi-upload-name');
+const midiUpload      = document.getElementById('midi-upload');
+const midiUploadName  = document.getElementById('midi-upload-name');
+const midiTrackSelect = document.getElementById('midi-track-select');
+
+// Tracks from the last loaded MIDI file
+let parsedTracks = [];
 
 function clearCustomSong() {
   customSong = null;
+  parsedTracks = [];
   midiUploadName.textContent = '';
   midiUpload.value = '';
+  midiTrackSelect.innerHTML = '';
+  midiTrackSelect.classList.remove('visible');
 }
+
+function applyMidiTrack(parsed, trackIndex) {
+  const notes = trackIndex === -1
+    ? parsed.notes
+    : parsed.tracks[trackIndex].notes;
+  customSong = { bpm: parsed.bpm, meter: parsed.meter, notes };
+  const label = trackIndex === -1 ? 'All tracks' : parsed.tracks[trackIndex].name;
+  songBpmEl.textContent = `${parsed.bpm} BPM · ${label} (${notes.length} notes)`;
+  engine.load(customSong);
+  highway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
+  staffHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
+  judge.reset();
+  updateScoreUI();
+  buildBeatPips();
+  activeHighway().draw(0, engine.notes);
+}
+
+let _lastParsed = null;
 
 midiUpload.addEventListener('change', async () => {
   const file = midiUpload.files[0];
@@ -206,21 +231,40 @@ midiUpload.addEventListener('change', async () => {
   try {
     const buf = await file.arrayBuffer();
     const parsed = MidiParser.parse(buf);
-    customSong = { bpm: parsed.bpm, meter: parsed.meter, notes: parsed.notes };
+    _lastParsed = parsed;
+    parsedTracks = parsed.tracks;
     midiUploadName.textContent = file.name;
-    songBpmEl.textContent = `${parsed.bpm} BPM (${parsed.notes.length} notes)`;
-    engine.load(customSong);
-    highway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
-    staffHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
-    judge.reset();
-    updateScoreUI();
-    buildBeatPips();
-    activeHighway().draw(0, engine.notes);
+
+    // Populate track selector
+    midiTrackSelect.innerHTML = '';
+    if (parsed.tracks.length > 1) {
+      const allOpt = document.createElement('option');
+      allOpt.value = '-1';
+      allOpt.textContent = 'All tracks';
+      midiTrackSelect.appendChild(allOpt);
+      parsed.tracks.forEach((tr, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = tr.name;
+        midiTrackSelect.appendChild(opt);
+      });
+      midiTrackSelect.classList.add('visible');
+    } else {
+      midiTrackSelect.classList.remove('visible');
+    }
+
+    applyMidiTrack(parsed, -1);
   } catch (err) {
     console.error('MIDI parse error:', err);
     midiUploadName.textContent = 'parse error';
     customSong = null;
   }
+});
+
+// ── Track selector change ──
+midiTrackSelect.addEventListener('change', () => {
+  if (!_lastParsed) return;
+  applyMidiTrack(_lastParsed, parseInt(midiTrackSelect.value, 10));
 });
 
 // ── MIDI status ──
