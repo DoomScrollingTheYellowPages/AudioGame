@@ -45,6 +45,7 @@ const accuracyEl   = document.getElementById('accuracy');
 const progressBar  = document.getElementById('progress-bar');
 const feedbackEl   = document.getElementById('hit-feedback');
 const startBtn     = document.getElementById('btn-start');
+const stopBtn      = document.getElementById('btn-stop');
 const noteButtons  = document.querySelectorAll('.note-btn');
 const resultsDiv   = document.getElementById('results');
 const backdrop     = document.getElementById('backdrop');
@@ -406,8 +407,9 @@ bus.on('song:tick', ({ position, notes }) => {
 // ── Song end ──
 bus.on('song:end', () => {
   startBtn.textContent = 'Restart';
+  stopBtn.style.display = 'none';
   // Stop any lingering synth voices
-  for (const [i, tid] of _activeNotes) {
+  for (const [, tid] of _activeNotes) {
     clearTimeout(tid);
   }
   _activeNotes.clear();
@@ -426,7 +428,20 @@ startBtn.addEventListener('click', () => {
   buildBeatPips();
   engine.start();
   startBtn.textContent = 'Playing...';
+  stopBtn.style.display = '';
   // Draw initial frame in active view
+  activeHighway().draw(0, engine.notes);
+});
+
+// ── Stop ──
+stopBtn.addEventListener('click', () => {
+  engine.stop();
+  _playedNotes.clear();
+  for (const [, tid] of _activeNotes) clearTimeout(tid);
+  _activeNotes.clear();
+  startBtn.textContent = 'Start';
+  stopBtn.style.display = 'none';
+  progressBar.style.width = '0%';
   activeHighway().draw(0, engine.notes);
 });
 

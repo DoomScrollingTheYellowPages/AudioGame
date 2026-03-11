@@ -139,6 +139,16 @@ export class MidiParser {
       }
     }
 
+    // Normalize: strip any leading silence so the first note starts at t=0.
+    // SongEngine.load() will add its own count-in on top; without this,
+    // MIDI files that have an intro bar of rests would be double-offset.
+    if (notes.length > 0) {
+      const minTime = Math.min(...notes.map(n => n.time));
+      if (minTime > 0) {
+        for (const n of notes) n.time -= minTime;
+      }
+    }
+
     return { bpm, ticksPerBeat, meter, notes };
   }
 }

@@ -25,7 +25,7 @@ export class SongEngine {
     this._running = false;
     this._rafId = null;
     this._songDuration = 0;   // ms total
-    this._countIn = 2000;     // 2 second lead-in before notes appear
+    this._countIn = 0;        // no count-in (debug)
     this._lastBeat = -1;      // track which beat we last fired
   }
 
