@@ -48,13 +48,51 @@
       color: #444;
     }
 
-    #midi-status {
+    .input-status {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    #midi-status, #audio-status {
       font-size: 10px;
       color: #333;
       letter-spacing: 1px;
     }
-    #midi-status[data-state="ok"]  { color: #00ff88; }
-    #midi-status[data-state="err"] { color: #ff4444; }
+    #midi-status[data-state="ok"],
+    #audio-status[data-state="ok"]   { color: #00ff88; }
+    #midi-status[data-state="err"],
+    #audio-status[data-state="err"]  { color: #ff4444; }
+
+    /* ── Mic toggle ── */
+    #btn-mic {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #555;
+      font-family: inherit;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    #btn-mic:hover { border-color: #00ff88; color: #00ff88; }
+    #btn-mic[data-active="true"] {
+      border-color: #00ff88;
+      color: #00ff88;
+    }
+
+    /* ── Detected pitch display ── */
+    #detected-pitch {
+      height: 20px;
+      font-size: 11px;
+      color: #444;
+      text-align: center;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    #detected-pitch[data-hearing="true"] { color: #00ff88; }
 
     /* ── Score bar ── */
     .score-bar {
@@ -195,7 +233,11 @@
   <header class="page-header">
     <a class="back-link" href="./index.html">← Back</a>
     <span class="page-title">Note Reading</span>
-    <span id="midi-status">MIDI —</span>
+    <div class="input-status">
+      <span id="midi-status">MIDI —</span>
+      <button id="btn-mic" data-active="false">🎤 Mic</button>
+      <span id="audio-status"></span>
+    </div>
   </header>
 
   <!-- ── Score ── -->
@@ -209,11 +251,14 @@
     <canvas id="staff-canvas" width="560" height="200"></canvas>
   </div>
 
+  <!-- ── Detected pitch (mic) ── -->
+  <div id="detected-pitch"></div>
+
   <!-- ── Feedback ── -->
   <div id="feedback" data-state=""></div>
 
   <!-- ── Note buttons ── -->
-  <p class="prompt">Play on keyboard · or click a note name</p>
+  <p class="prompt">Play on MIDI keyboard · sing/play into mic · or click a note</p>
   <div class="note-buttons">
     <button class="note-btn" data-note="C">C</button>
     <button class="note-btn" data-note="D">D</button>

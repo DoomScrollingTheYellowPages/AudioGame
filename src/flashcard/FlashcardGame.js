@@ -36,6 +36,10 @@ export class FlashcardGame {
     // MIDI input listener
     this._onMidiNote = ({ note }) => this.submitAnswer(this._pitchLetter(note));
     bus.on('midi:noteOn', this._onMidiNote);
+
+    // Audio pitch listener (from microphone via PitchDetector bridge)
+    this._onAudioPitch = ({ noteName }) => this.submitAnswer(this._pitchLetter(null, noteName));
+    bus.on('audio:pitch', this._onAudioPitch);
   }
 
   // ── Public API ───────────────────────────────
@@ -94,11 +98,24 @@ export class FlashcardGame {
   destroy() {
     clearTimeout(this._advanceTimer);
     this.bus.off('midi:noteOn', this._onMidiNote);
+    this.bus.off('audio:pitch', this._onAudioPitch);
   }
 
   // ── Private helpers ──────────────────────────
 
-  _pitchLetter(midiNote) {
+  /**
+   * Get the natural-note letter from a MIDI note number or a direct name.
+   * @param {number|null} midiNote  MIDI note (0-127), or null if using name
+   * @param {string}      [name]    Direct note name like 'C', 'C#', etc.
+   * @returns {string|null}  Natural letter (C-B) or null for accidentals
+   */
+  _pitchLetter(midiNote, name) {
+    if (name) {
+      // Strip accidentals — only accept natural notes
+      const letter = name.charAt(0);
+      if (name.length === 1 && 'CDEFGAB'.includes(letter)) return letter;
+      return null; // accidental (sharp/flat)
+    }
     return CHROMATIC_LETTERS[midiNote % 12] ?? null;
   }
 

@@ -2,75 +2,11 @@
 // Tuner — real-time note/pitch detection display
 // ─────────────────────────────────────────────
 // Subscribes to: audio:frame
-// Uses autocorrelation to detect fundamental frequency,
+// Uses shared PitchDetector for autocorrelation,
 // maps it to a musical note, and shows a cents-deviation meter.
 // ─────────────────────────────────────────────
 
-const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-
-// ── Pitch detection ──────────────────────────
-
-/**
- * Autocorrelation-based fundamental frequency detection.
- * Returns Hz, or null if signal is too quiet / undetectable.
- *
- * @param {Float32Array} buf      time-domain PCM samples (-1..1)
- * @param {number}       rate     sample rate in Hz
- * @returns {number|null}
- */
-function detectPitch(buf, rate) {
-  const n = buf.length;
-
-  // Silence gate — skip computation when there's no real signal
-  let sumSq = 0;
-  for (let i = 0; i < n; i++) sumSq += buf[i] * buf[i];
-  if (sumSq / n < 0.0001) return null; // RMS < 0.01
-
-  // Lag range corresponding to 60 Hz – 1100 Hz
-  const minLag = Math.floor(rate / 1100); // ~40  at 44100
-  const maxLag = Math.min(Math.ceil(rate / 60), n - 2); // ~735 at 44100
-
-  // Compute autocorrelation for every lag in the range (+1 extra for interp)
-  const corr = new Float32Array(maxLag + 2);
-  for (let lag = minLag; lag <= maxLag + 1; lag++) {
-    let s = 0;
-    const end = n - lag;
-    for (let i = 0; i < end; i++) s += buf[i] * buf[i + lag];
-    corr[lag] = s;
-  }
-
-  // Find the lag with the highest correlation
-  let best = minLag;
-  for (let lag = minLag + 1; lag <= maxLag; lag++) {
-    if (corr[lag] > corr[best]) best = lag;
-  }
-  if (corr[best] <= 0) return null;
-
-  // Parabolic interpolation for sub-sample accuracy
-  const y0 = corr[best - 1];
-  const y1 = corr[best];
-  const y2 = corr[best + 1];
-  const denom = 2 * (2 * y1 - y0 - y2);
-  const refined = denom !== 0 ? best + (y2 - y0) / denom : best;
-
-  return rate / refined;
-}
-
-// ── Note mapping ─────────────────────────────
-
-/**
- * Convert a frequency to note name, octave, and cents deviation.
- * @param {number} freq Hz
- * @returns {{ name: string, octave: number, cents: number }}
- */
-function freqToNote(freq) {
-  const midiF  = 69 + 12 * Math.log2(freq / 440);
-  const midi   = Math.round(midiF);
-  const cents  = Math.round((midiF - midi) * 100);
-  const octave = Math.floor(midi / 12) - 1;
-  const name   = NOTE_NAMES[((midi % 12) + 12) % 12];
-  return { name, octave, cents };
-}
+import { detectPitch, freqToNote } from '../core/PitchDetector.js';
 
 // ── Tuner component ──────────────────────────
 
@@ -141,7 +77,7 @@ export class Tuner {
       : this._smoothFreq * 0.75 + raw * 0.25;
 
     const freq = this._smoothFreq;
-    const { name, octave, cents } = freqToNote(freq);
+    const { noteName: name, octave, cents } = freqToNote(freq);
     const inTune = Math.abs(cents) <= 8;
     const color  = inTune ? '#00ff88' : '#ffaa00';
 
