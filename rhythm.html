@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rhythm Game — AudioGame</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d0d;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      gap: 0;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+    }
+
+    .back-link {
+      color: #555;
+      text-decoration: none;
+      font-size: 12px;
+      border: 1px solid #222;
+      border-radius: 4px;
+      padding: 4px 10px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .back-link:hover { color: #00ff88; border-color: #00ff88; }
+
+    .page-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #444;
+    }
+
+    .input-status {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #midi-status, #audio-status {
+      font-size: 10px;
+      color: #333;
+      letter-spacing: 1px;
+    }
+    #midi-status[data-state="ok"],
+    #audio-status[data-state="ok"]   { color: #00ff88; }
+    #midi-status[data-state="err"],
+    #audio-status[data-state="err"]  { color: #ff4444; }
+
+    #midi-device-select {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #888;
+      font-family: inherit;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      max-width: 140px;
+    }
+
+    #btn-mic {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #555;
+      font-family: inherit;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    #btn-mic:hover { border-color: #00ff88; color: #00ff88; }
+    #btn-mic[data-active="true"] { border-color: #00ff88; color: #00ff88; }
+
+    /* ── Song info bar ── */
+    .song-bar {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      padding-bottom: 12px;
+      font-size: 11px;
+      color: #555;
+    }
+    .song-bar .song-name { color: #888; font-weight: bold; }
+    .song-bar .bpm { color: #555; }
+
+    #song-select {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #888;
+      font-family: inherit;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .bar-sep { color: #2a2a2a; }
+
+    .midi-upload-label {
+      color: #555;
+      cursor: pointer;
+      font-size: 11px;
+      border: 1px solid #2a2a2a;
+      padding: 2px 8px;
+      border-radius: 4px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .midi-upload-label:hover { color: #00ff88; border-color: #00ff88; }
+
+    .midi-file-name {
+      color: #00ff88;
+      font-size: 10px;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Score bar ── */
+    .score-bar {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      gap: 20px;
+      padding-bottom: 8px;
+      font-size: 12px;
+      color: #444;
+    }
+    #score       { color: #e0e0e0; }
+    #combo       { color: #888; }
+    #accuracy    { color: #555; }
+
+    /* ── Highway canvas ── */
+    .highway-wrap {
+      width: 100%;
+      max-width: 800px;
+      background: #0d0d0d;
+      border: 1px solid #222;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    #highway-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* ── Hit feedback ── */
+    #hit-feedback {
+      height: 32px;
+      font-size: 18px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #333;
+      text-align: center;
+      transition: color 0.1s;
+      line-height: 32px;
+    }
+    #hit-feedback.perfect { color: #00ff88; }
+    #hit-feedback.great   { color: #88cc44; }
+    #hit-feedback.good    { color: #ccaa22; }
+    #hit-feedback.miss    { color: #ff4444; }
+
+    /* ── Detected pitch display ── */
+    #detected-pitch {
+      height: 18px;
+      font-size: 11px;
+      color: #444;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+    #detected-pitch[data-hearing="true"] { color: #00ff88; }
+
+    /* ── Note buttons ── */
+    .prompt {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #333;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .note-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .note-btn {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #888;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: bold;
+      width: 52px;
+      height: 52px;
+      border-radius: 6px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .note-btn:hover { border-color: #00ff88; color: #00ff88; background: #161f18; }
+    .note-btn:active { background: #0f1a12; }
+
+    /* ── Start / Restart ── */
+    #btn-start {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #aaa;
+      font-family: inherit;
+      font-size: 14px;
+      padding: 10px 36px;
+      border-radius: 6px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: border-color 0.2s, color 0.2s;
+      margin-bottom: 16px;
+    }
+    #btn-start:hover { border-color: #00ff88; color: #00ff88; }
+
+    /* ── Results overlay ── */
+    #results {
+      display: none;
+      width: 100%;
+      max-width: 400px;
+      background: #141414;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 28px;
+      text-align: center;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+    #results.visible { display: block; }
+    #results h2 {
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: #00ff88;
+      margin-bottom: 20px;
+    }
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 12px;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .result-row .label { color: #555; }
+    .result-row .value { color: #e0e0e0; }
+    .result-row .value.perfect { color: #00ff88; }
+    .result-row .value.great { color: #88cc44; }
+    .result-row .value.good { color: #ccaa22; }
+    .result-row .value.miss { color: #ff4444; }
+
+    #results-close {
+      margin-top: 20px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #aaa;
+      font-family: inherit;
+      font-size: 12px;
+      padding: 8px 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 1px;
+    }
+    #results-close:hover { border-color: #00ff88; color: #00ff88; }
+
+    /* ── Backdrop ── */
+    #backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 9;
+    }
+    #backdrop.visible { display: block; }
+
+    /* ── Progress bar ── */
+    .progress-wrap {
+      width: 100%;
+      max-width: 800px;
+      height: 3px;
+      background: #1a1a1a;
+      border-radius: 2px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #00ff88;
+      transition: width 0.1s linear;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <header class="page-header">
+    <a class="back-link" href="./index.html">&larr; Back</a>
+    <span class="page-title">Rhythm Game</span>
+    <div class="input-status">
+      <span id="midi-status">MIDI &mdash;</span>
+      <select id="midi-device-select"><option>&mdash; no devices &mdash;</option></select>
+      <button id="btn-mic" data-active="false">&#127908; Mic</button>
+      <span id="audio-status"></span>
+    </div>
+  </header>
+
+  <!-- ── Song selector + info ── -->
+  <div class="song-bar">
+    <label>Song: <select id="song-select"></select></label>
+    <span id="song-bpm" class="bpm"></span>
+    <span class="bar-sep">|</span>
+    <label class="midi-upload-label" for="midi-upload">&#128190; Load .mid</label>
+    <input type="file" id="midi-upload" accept=".mid,.midi" hidden />
+    <span id="midi-upload-name" class="midi-file-name"></span>
+  </div>
+
+  <!-- ── Score ── -->
+  <div class="score-bar">
+    <span id="score">0</span>
+    <span id="combo">combo 0</span>
+    <span id="accuracy">0%</span>
+  </div>
+
+  <!-- ── Progress ── -->
+  <div class="progress-wrap">
+    <div id="progress-bar"></div>
+  </div>
+
+  <!-- ── Highway ── -->
+  <div class="highway-wrap">
+    <canvas id="highway-canvas" width="800" height="280"></canvas>
+  </div>
+
+  <!-- ── Hit feedback ── -->
+  <div id="hit-feedback"></div>
+
+  <!-- ── Detected pitch (mic) ── -->
+  <div id="detected-pitch"></div>
+
+  <!-- ── Controls ── -->
+  <button id="btn-start">Start</button>
+
+  <p class="prompt">Play on MIDI keyboard &middot; sing/play into mic &middot; or click a note</p>
+  <div class="note-buttons">
+    <button class="note-btn" data-note="C">C</button>
+    <button class="note-btn" data-note="D">D</button>
+    <button class="note-btn" data-note="E">E</button>
+    <button class="note-btn" data-note="F">F</button>
+    <button class="note-btn" data-note="G">G</button>
+    <button class="note-btn" data-note="A">A</button>
+    <button class="note-btn" data-note="B">B</button>
+  </div>
+
+  <!-- ── Results overlay ── -->
+  <div id="backdrop"></div>
+  <div id="results">
+    <h2>Results</h2>
+    <div class="result-row"><span class="label">Score</span><span class="value" id="r-score"></span></div>
+    <div class="result-row"><span class="label">Accuracy</span><span class="value" id="r-accuracy"></span></div>
+    <div class="result-row"><span class="label">Max Combo</span><span class="value" id="r-combo"></span></div>
+    <div class="result-row"><span class="label">Perfect</span><span class="value perfect" id="r-perfect"></span></div>
+    <div class="result-row"><span class="label">Great</span><span class="value great" id="r-great"></span></div>
+    <div class="result-row"><span class="label">Good</span><span class="value good" id="r-good"></span></div>
+    <div class="result-row"><span class="label">Miss</span><span class="value miss" id="r-miss"></span></div>
+    <button id="results-close">Close</button>
+  </div>
+
+  <script type="module" src="./src/rhythm-main.js"></script>
+</body>
+</html>
