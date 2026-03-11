@@ -49,7 +49,17 @@
       "Bash(where py:*)",
       "Bash(taskkill /f /im dotnet-serve.exe)",
       "Bash(curl -s -I http://localhost:8080/src/rhythm/DemoSongs.js)",
-      "WebFetch(domain:doomscrollingtheyellowpages.github.io)"
+      "WebFetch(domain:doomscrollingtheyellowpages.github.io)",
+      "Bash(node scripts/export-midi.mjs)",
+      "Bash(powershell.exe -Command \"node --version\")",
+      "Bash(powershell.exe -Command \"Get-Command node\")",
+      "Bash(choco install:*)",
+      "Bash(curl -L \"https://nodejs.org/dist/v22.14.0/node-v22.14.0-win-x64.zip\" -o /tmp/node.zip)",
+      "Bash(cd /tmp)",
+      "Bash(unzip -q node.zip)",
+      "Bash(where dotnet-serve:*)",
+      "Bash(dotnet-serve --version)",
+      "Bash(where npx:*)"
     ]
   }
 }

@@ -4,7 +4,7 @@
     {
       "name": "dev",
       "runtimeExecutable": "dotnet-serve",
-      "runtimeArgs": ["-p", "8080", "-o", "--mime", ".js=application/javascript"],
+      "runtimeArgs": ["-p", "8080", "--mime", ".js=application/javascript"],
       "port": 8080
     }
   ]

@@ -1,25 +1,27 @@
 // ─────────────────────────────────────────────
-// flashcard-main.js — wiring for flashcard.html
+// speed-reader-main.js — wiring for speed-reader.html
 // ─────────────────────────────────────────────
 
 import { EventBus }         from './core/EventBus.js';
 import { MIDIInput }        from './input/MIDIInput.js';
 import { AudioInput }       from './input/AudioInput.js';
 import { createPitchBridge, detectPitch, freqToNote } from './core/PitchDetector.js';
-import { FlashcardGame }    from './flashcard/FlashcardGame.js';
+import { SpeedReaderGame }  from './flashcard/SpeedReaderGame.js';
 import { Synth }            from './audio/Synth.js';
 
 // ── Bootstrap ──
-const bus        = new EventBus();
-const midiInput  = new MIDIInput(bus);
+const bus       = new EventBus();
+const midiInput = new MIDIInput(bus);
 const audioInput = new AudioInput(bus);
 
 // ── DOM refs ──
 const canvas       = document.getElementById('staff-canvas');
-const scoreEl      = document.getElementById('score');
-const streakEl     = document.getElementById('streak');
+const npmEl        = document.getElementById('npm');
+const notesEl      = document.getElementById('notes-count');
+const accuracyEl   = document.getElementById('accuracy');
+const timerEl      = document.getElementById('timer');
 const feedbackEl   = document.getElementById('feedback');
-const nextBtn      = document.getElementById('btn-next');
+const streakEl     = document.getElementById('streak-display');
 const midiStatus   = document.getElementById('midi-status');
 const audioStatus  = document.getElementById('audio-status');
 const micBtn       = document.getElementById('btn-mic');
@@ -29,18 +31,32 @@ const deviceSelect = document.getElementById('midi-device-select');
 
 // ── Game ──
 const synth = new Synth();
-const game = new FlashcardGame(canvas, bus, { scoreEl, streakEl, feedbackEl, nextBtn }, synth);
-
-const playNoteBtn = document.getElementById('btn-play-note');
-
-nextBtn.addEventListener('click', () => game.nextNote());
-playNoteBtn.addEventListener('click', () => game.playCurrentNote());
+const game = new SpeedReaderGame(canvas, bus, {
+  npmEl, notesEl, accuracyEl, timerEl, feedbackEl, streakEl,
+}, synth);
 
 noteButtons.forEach(btn => {
   btn.addEventListener('click', () => game.submitAnswer(btn.dataset.note));
 });
 
-// ── MIDI status display ──
+// Keyboard input: a=C s=D d=E f=F g=G h=A j=B
+const KEY_MAP = { a: 'C', s: 'D', d: 'E', f: 'F', g: 'G', h: 'A', j: 'B' };
+document.addEventListener('keydown', (e) => {
+  const note = KEY_MAP[e.key.toLowerCase()];
+  if (note) game.submitAnswer(note);
+});
+
+// ── Back button cleanup ──
+const backLink = document.querySelector('.back-link');
+backLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  game.destroy();
+  synth.hardStop();
+  audioInput.stop();
+  window.location.href = backLink.href;
+});
+
+// ── MIDI status ──
 bus.on('midi:state', ({ supported, access }) => {
   if (!supported) {
     midiStatus.textContent   = 'MIDI n/a';
@@ -68,70 +84,44 @@ bus.on('midi:noteOn', () => {
 });
 
 // ── Audio / Mic ──
-
-let micActive   = false;
-let pitchUnsub  = null;
+let micActive  = false;
+let pitchUnsub = null;
 
 micBtn.addEventListener('click', async () => {
-  if (!micActive) {
-    await audioInput.start();
-  } else {
-    audioInput.stop();
-  }
+  if (!micActive) await audioInput.start();
+  else audioInput.stop();
 });
 
 bus.on('audio:state', ({ active, error }) => {
   micActive = active;
   micBtn.dataset.active = String(active);
-
   if (active) {
     audioStatus.textContent   = 'Listening';
     audioStatus.dataset.state = 'ok';
-
-    // Start the pitch bridge when mic goes active
     if (!pitchUnsub) {
-      pitchUnsub = createPitchBridge(bus, {
-        centsThreshold: 25,
-        stabilityCount: 3,
-      });
+      pitchUnsub = createPitchBridge(bus, { centsThreshold: 25, stabilityCount: 3 });
     }
   } else {
-    audioStatus.textContent   = error ? `Mic error` : '';
-    audioStatus.dataset.state = error ? 'err' : '';
-    detectedEl.textContent    = '';
+    audioStatus.textContent    = error ? 'Mic error' : '';
+    audioStatus.dataset.state  = error ? 'err' : '';
+    detectedEl.textContent     = '';
     detectedEl.dataset.hearing = 'false';
-
-    // Tear down pitch bridge
-    if (pitchUnsub) {
-      pitchUnsub();
-      pitchUnsub = null;
-    }
+    if (pitchUnsub) { pitchUnsub(); pitchUnsub = null; }
   }
 });
 
-// Show detected pitch in real-time (separate from the bridge that triggers answers)
 bus.on('audio:frame', ({ timeDomain, sampleRate }) => {
   if (!micActive) return;
-
   const freq = detectPitch(timeDomain, sampleRate);
   if (freq) {
     const { noteName, octave, cents } = freqToNote(freq);
     const sign = cents >= 0 ? '+' : '';
-    detectedEl.textContent     = `hearing: ${noteName}${octave}  (${sign}${cents}¢)`;
+    detectedEl.textContent     = `hearing: ${noteName}${octave}  (${sign}${cents}\u00A2)`;
     detectedEl.dataset.hearing = 'true';
   } else {
-    detectedEl.textContent     = 'hearing: —';
+    detectedEl.textContent     = 'hearing: \u2014';
     detectedEl.dataset.hearing = 'false';
   }
-});
-
-// ── Back button cleanup ──
-const backLink = document.querySelector('.back-link');
-backLink.addEventListener('click', (e) => {
-  e.preventDefault();
-  game.destroy();
-  audioInput.stop();
-  window.location.href = backLink.href;
 });
 
 // ── Start ──

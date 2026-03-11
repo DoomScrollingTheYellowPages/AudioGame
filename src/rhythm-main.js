@@ -535,6 +535,16 @@ function hideResults() {
 resultsClose.addEventListener('click', hideResults);
 backdrop.addEventListener('click', hideResults);
 
+// ── Back button cleanup ──
+const backLink = document.querySelector('.back-link');
+backLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  engine.stop();
+  clearSynth();
+  audioInput.stop();
+  window.location.href = backLink.href;
+});
+
 // ── Init ──
 midiInput.init();
 // Draw initial empty frame in the default (piano) view

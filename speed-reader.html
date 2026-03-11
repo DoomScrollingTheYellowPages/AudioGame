@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Speed Reader — AudioGame</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d0d;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 16px;
+    }
+
+    .back-link {
+      color: #555;
+      text-decoration: none;
+      font-size: 12px;
+      border: 1px solid #222;
+      border-radius: 4px;
+      padding: 4px 10px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .back-link:hover { color: #00ff88; border-color: #00ff88; }
+
+    .page-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #444;
+    }
+
+    .input-status {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    #midi-status, #audio-status {
+      font-size: 10px;
+      color: #333;
+      letter-spacing: 1px;
+    }
+    #midi-status[data-state="ok"],
+    #audio-status[data-state="ok"]  { color: #00ff88; }
+    #midi-status[data-state="err"],
+    #audio-status[data-state="err"] { color: #ff4444; }
+
+    #midi-device-select {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #888;
+      font-family: inherit;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      max-width: 140px;
+    }
+
+    #btn-mic {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #555;
+      font-family: inherit;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    #btn-mic:hover { border-color: #00ff88; color: #00ff88; }
+    #btn-mic[data-active="true"] { border-color: #00ff88; color: #00ff88; }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      padding-bottom: 16px;
+      align-items: flex-end;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      padding: 0 8px;
+      border-right: 1px solid #1a1a1a;
+    }
+    .stat:last-child { border-right: none; }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: bold;
+      color: #e0e0e0;
+      line-height: 1.1;
+    }
+    .stat-value.big { font-size: 34px; color: #00ff88; }
+
+    .stat-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #333;
+      margin-top: 3px;
+    }
+
+    /* ── Staff canvas ── */
+    .staff-wrap {
+      width: 100%;
+      max-width: 600px;
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    #staff-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* ── Detected pitch (mic) ── */
+    #detected-pitch {
+      height: 20px;
+      font-size: 11px;
+      color: #444;
+      text-align: center;
+      letter-spacing: 1px;
+      margin-bottom: 2px;
+    }
+    #detected-pitch[data-hearing="true"] { color: #00ff88; }
+
+    /* ── Feedback (note name flash) ── */
+    #feedback {
+      height: 36px;
+      font-size: 22px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #444;
+      margin-bottom: 6px;
+      text-align: center;
+      transition: color 0.08s;
+      line-height: 36px;
+    }
+    #feedback[data-state="correct"] { color: #00ff88; }
+    #feedback[data-state="wrong"]   { color: #ff4444; }
+
+    /* ── Streak ── */
+    #streak-display {
+      font-size: 11px;
+      color: #444;
+      text-align: center;
+      margin-bottom: 14px;
+      letter-spacing: 1px;
+    }
+
+    /* ── Note buttons ── */
+    .prompt {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #333;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .note-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .note-btn {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #888;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: bold;
+      width: 54px;
+      height: 58px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .note-btn:hover  { border-color: #00ff88; color: #00ff88; background: #161f18; }
+    .note-btn:active { background: #0f1a12; }
+
+    .keyboard-hint {
+      font-size: 9px;
+      color: #333;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <header class="page-header">
+    <a class="back-link" href="./index.html">← Back</a>
+    <span class="page-title">Speed Reader</span>
+    <div class="input-status">
+      <span id="midi-status">MIDI —</span>
+      <select id="midi-device-select"><option>— no devices —</option></select>
+      <button id="btn-mic" data-active="false">🎤 Mic</button>
+      <span id="audio-status"></span>
+    </div>
+  </header>
+
+  <!-- ── Stats ── -->
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-value big" id="npm">—</span>
+      <span class="stat-label">notes/min</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value" id="notes-count">0</span>
+      <span class="stat-label">notes</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value" id="accuracy">100%</span>
+      <span class="stat-label">accuracy</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value" id="timer">0:00</span>
+      <span class="stat-label">time</span>
+    </div>
+  </div>
+
+  <!-- ── Staff ── -->
+  <div class="staff-wrap">
+    <canvas id="staff-canvas" width="560" height="200"></canvas>
+  </div>
+
+  <!-- ── Detected pitch (mic) ── -->
+  <div id="detected-pitch"></div>
+
+  <!-- ── Feedback ── -->
+  <div id="feedback" data-state=""></div>
+
+  <!-- ── Streak ── -->
+  <div id="streak-display">streak  0</div>
+
+  <!-- ── Note buttons ── -->
+  <p class="prompt">Play on MIDI keyboard · sing/play into mic · or click a note</p>
+  <div class="note-buttons">
+    <button class="note-btn" data-note="C">C</button>
+    <button class="note-btn" data-note="D">D</button>
+    <button class="note-btn" data-note="E">E</button>
+    <button class="note-btn" data-note="F">F</button>
+    <button class="note-btn" data-note="G">G</button>
+    <button class="note-btn" data-note="A">A</button>
+    <button class="note-btn" data-note="B">B</button>
+  </div>
+  <p class="keyboard-hint">keys: a &nbsp; s &nbsp; d &nbsp; f &nbsp; g &nbsp; h &nbsp; j</p>
+
+  <script type="module" src="./src/speed-reader-main.js"></script>
+</body>
+</html>
