@@ -165,6 +165,11 @@ export class Synth {
     osc.stop(now + duration + 0.01);
   }
 
+  /** Stop all currently sounding voices immediately. */
+  allNotesOff() {
+    for (const [note] of this._voices) this.noteOff(note);
+  }
+
   // ── Cleanup ─────────────────────────────────
 
   destroy() {
