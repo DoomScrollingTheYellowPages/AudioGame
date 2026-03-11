@@ -198,8 +198,8 @@ bus.on('audio:pitch', ({ noteName }) => {
   const letter = noteName.length === 1 && 'CDEFGAB'.includes(noteName) ? noteName : null;
   if (letter) {
     judge.judge(letter);
-    highway.setLaneActive(letter, true);
-    setTimeout(() => highway.setLaneActive(letter, false), 100);
+    activeHighway().setLaneActive(letter, true);
+    setTimeout(() => activeHighway().setLaneActive(letter, false), 100);
   }
 });
 
