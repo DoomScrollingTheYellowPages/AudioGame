@@ -5,12 +5,12 @@
 // tracks pace (notes/min) and first-try accuracy.
 // ─────────────────────────────────────────────
 
-import { StaffRenderer } from './StaffRenderer.js';
+import { StaffRenderer }                from './StaffRenderer.js';
+import { FingeringRenderer, FINGERING_H } from '../fingering/FingeringRenderer.js';
+import { pitchClass }                  from '../core/NoteInfo.js';
 
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
-// Natural notes only — treble clef C4–A5
-const NATURAL_NOTES = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81];
+// All chromatic notes — treble clef C4–A♯5
+const TREBLE_NOTES = Array.from({ length: 23 }, (_, i) => 60 + i);
 
 export class SpeedReaderGame {
   /**
@@ -20,10 +20,14 @@ export class SpeedReaderGame {
    * @param {Synth|null}        synth — optional Synth for note playback on correct answer
    */
   constructor(canvas, bus, ui, synth = null) {
-    this.renderer = new StaffRenderer(canvas);
-    this.bus      = bus;
-    this.ui       = ui;
-    this._synth   = synth;
+    this._canvas           = canvas;
+    this._staffRenderer    = new StaffRenderer(canvas);
+    this._fingeringRenderer = new FingeringRenderer(canvas);
+    this._mode             = 'staff';
+    this.renderer          = this._staffRenderer;
+    this.bus               = bus;
+    this.ui                = ui;
+    this._synth            = synth;
 
     this.currentNote = null;
     this._solved     = false;
@@ -42,7 +46,7 @@ export class SpeedReaderGame {
     this._wrongTimer    = null;
     this._timerInterval = null;
 
-    this._onMidiNote   = ({ note }) => this.submitAnswer(NOTE_NAMES[note % 12]);
+    this._onMidiNote   = ({ note }) => this.submitAnswer(pitchClass(note));
     bus.on('midi:noteOn', this._onMidiNote);
 
     this._onAudioPitch = ({ noteName }) => this.submitAnswer(noteName);
@@ -75,8 +79,8 @@ export class SpeedReaderGame {
 
     let note;
     do {
-      note = NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)];
-    } while (note === this.currentNote && NATURAL_NOTES.length > 1);
+      note = TREBLE_NOTES[Math.floor(Math.random() * TREBLE_NOTES.length)];
+    } while (note === this.currentNote && TREBLE_NOTES.length > 1);
 
     this.currentNote = note;
     this.renderer.render(note, 'normal');
@@ -89,7 +93,7 @@ export class SpeedReaderGame {
     const info = this.renderer.getNoteInfo(this.currentNote);
     if (!info) return;
 
-    if (noteName === info.letter) {
+    if (noteName === pitchClass(this.currentNote)) {
       this._solved = true;
       const elapsed = Date.now() - this._noteStart;
       this._totalNoteMs += elapsed;
@@ -127,6 +131,21 @@ export class SpeedReaderGame {
           this._setFeedback('', '');
         }
       }, 350);
+    }
+  }
+
+  /**
+   * Switch between 'staff' and 'fingering' display modes.
+   * @param {'staff'|'fingering'} mode
+   */
+  setMode(mode) {
+    if (mode === this._mode) return;
+    this._mode    = mode;
+    this.renderer = mode === 'fingering' ? this._fingeringRenderer : this._staffRenderer;
+    // Resize canvas to match renderer requirements
+    this._canvas.height = mode === 'fingering' ? FINGERING_H : 200;
+    if (this.currentNote !== null) {
+      this.renderer.render(this.currentNote, 'normal');
     }
   }
 

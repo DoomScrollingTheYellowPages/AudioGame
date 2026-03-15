@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Music Game — AudioGame</title>
+  <title>MidiHero — AudioGame</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -54,15 +54,13 @@
       align-items: center;
     }
 
-    #midi-status, #audio-status {
+    #midi-status {
       font-size: 10px;
       color: #333;
       letter-spacing: 1px;
     }
-    #midi-status[data-state="ok"],
-    #audio-status[data-state="ok"]   { color: #00ff88; }
-    #midi-status[data-state="err"],
-    #audio-status[data-state="err"]  { color: #ff4444; }
+    #midi-status[data-state="ok"] { color: #00ff88; }
+    #midi-status[data-state="err"] { color: #ff4444; }
 
     #midi-device-select {
       background: #1a1a1a;
@@ -74,21 +72,6 @@
       border-radius: 4px;
       max-width: 140px;
     }
-
-    #btn-mic {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #555;
-      font-family: inherit;
-      font-size: 11px;
-      padding: 3px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      letter-spacing: 1px;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    #btn-mic:hover { border-color: #00ff88; color: #00ff88; }
-    #btn-mic[data-active="true"] { border-color: #00ff88; color: #00ff88; }
 
     /* ── Song info bar ── */
     .song-bar {
@@ -116,27 +99,41 @@
 
     .bar-sep { color: #2a2a2a; }
 
-    /* ── View toggle ── */
-    .view-toggle {
-      display: flex;
-      gap: 0;
+    /* ── View select ── */
+    .view-select-wrap {
       margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-    .view-btn {
+    .view-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #333;
+    }
+    #view-select {
       background: #1a1a1a;
       border: 1px solid #2a2a2a;
-      color: #555;
+      color: #888;
       font-family: inherit;
-      font-size: 10px;
-      padding: 2px 10px;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
       cursor: pointer;
-      letter-spacing: 1px;
-      transition: color 0.2s, border-color 0.2s, background 0.2s;
     }
-    .view-btn:first-child { border-radius: 4px 0 0 4px; }
-    .view-btn:last-child  { border-radius: 0 4px 4px 0; border-left: none; }
-    .view-btn.active      { background: #1a2e1e; border-color: #00ff88; color: #00ff88; }
-    .view-btn:not(.active):hover { color: #aaa; border-color: #444; }
+
+    .input-config-link {
+      color: #444;
+      text-decoration: none;
+      font-size: 10px;
+      border: 1px solid #222;
+      border-radius: 4px;
+      padding: 3px 8px;
+      letter-spacing: 1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .input-config-link:hover { color: #00ff88; border-color: #00ff88; }
 
     .midi-upload-label {
       color: #555;
@@ -307,16 +304,6 @@
     #hit-feedback.good    { color: #ccaa22; }
     #hit-feedback.miss    { color: #ff4444; }
 
-    /* ── Detected pitch display ── */
-    #detected-pitch {
-      height: 18px;
-      font-size: 11px;
-      color: #444;
-      text-align: center;
-      letter-spacing: 1px;
-    }
-    #detected-pitch[data-hearing="true"] { color: #00ff88; }
-
     /* ── Note buttons ── */
     .prompt {
       font-size: 10px;
@@ -328,33 +315,51 @@
     }
 
     .note-buttons {
+      position: relative;
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-bottom: 16px;
+      gap: 3px;
+      width: 100%;
+      max-width: 400px;
+      height: 72px;
+      margin: 0 auto 16px;
     }
 
     .note-btn {
+      flex: 1;
       background: #1a1a1a;
       border: 1px solid #2a2a2a;
       color: #888;
       font-family: inherit;
       font-size: 13px;
       font-weight: bold;
-      width: 46px;
-      height: 52px;
-      border-radius: 6px;
+      border-radius: 0 0 6px 6px;
       cursor: pointer;
       letter-spacing: 0;
       transition: border-color 0.15s, color 0.15s, background 0.15s;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 5px;
     }
     .note-btn[data-black="true"] {
+      position: absolute;
+      top: 0;
+      width: 12%;
+      height: 55%;
       background: #111;
+      border: 1px solid #2a2a2a;
       color: #555;
-      height: 44px;
       font-size: 11px;
+      border-radius: 0 0 4px 4px;
+      z-index: 1;
+      align-items: flex-end;
+      padding-bottom: 3px;
     }
+    .note-btn[data-note="C#"] { left: 8.5%;  }
+    .note-btn[data-note="D#"] { left: 22.5%; }
+    .note-btn[data-note="F#"] { left: 51%;   }
+    .note-btn[data-note="G#"] { left: 65%;   }
+    .note-btn[data-note="A#"] { left: 79.5%; }
     .note-btn:hover { border-color: #00ff88; color: #00ff88; background: #161f18; }
     .note-btn:active { background: #0f1a12; }
 
@@ -482,12 +487,11 @@
   <!-- ── Header ── -->
   <header class="page-header">
     <a class="back-link" href="./index.html">&larr; Back</a>
-    <span class="page-title">Music Game</span>
+    <span class="page-title">MidiHero</span>
     <div class="input-status">
       <span id="midi-status">MIDI &mdash;</span>
       <select id="midi-device-select"><option>&mdash; no devices &mdash;</option></select>
-      <button id="btn-mic" data-active="false">&#127908; Mic</button>
-      <span id="audio-status"></span>
+      <a class="input-config-link" href="./input-config.html">&#9881;</a>
     </div>
   </header>
 
@@ -500,9 +504,13 @@
     <input type="file" id="midi-upload" accept=".mid,.midi" hidden />
     <span id="midi-upload-name" class="midi-file-name"></span>
     <select id="midi-track-select"></select>
-    <div class="view-toggle">
-      <button class="view-btn active" data-view="piano">&#127929; Piano</button>
-      <button class="view-btn"        data-view="staff">&#119070; Staff</button>
+    <div class="view-select-wrap">
+      <span class="view-label">View:</span>
+      <select id="view-select">
+        <option value="piano">&#127929; Piano Roll</option>
+        <option value="staff">&#119070; Staff</option>
+        <option value="fingering">&#9835; Oboe Fingering</option>
+      </select>
     </div>
   </div>
 
@@ -541,9 +549,6 @@
 
   <!-- ── Hit feedback ── -->
   <div id="hit-feedback"></div>
-
-  <!-- ── Detected pitch (mic) ── -->
-  <div id="detected-pitch"></div>
 
   <!-- ── Transport ── -->
   <div class="transport">

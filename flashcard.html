@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Flashcard Game — AudioGame</title>
+  <title>Flashcards — AudioGame</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -54,15 +54,13 @@
       align-items: center;
     }
 
-    #midi-status, #audio-status {
+    #midi-status {
       font-size: 10px;
       color: #333;
       letter-spacing: 1px;
     }
-    #midi-status[data-state="ok"],
-    #audio-status[data-state="ok"]   { color: #00ff88; }
-    #midi-status[data-state="err"],
-    #audio-status[data-state="err"]  { color: #ff4444; }
+    #midi-status[data-state="ok"] { color: #00ff88; }
+    #midi-status[data-state="err"] { color: #ff4444; }
 
     #midi-device-select {
       background: #1a1a1a;
@@ -74,36 +72,6 @@
       border-radius: 4px;
       max-width: 140px;
     }
-
-    /* ── Mic toggle ── */
-    #btn-mic {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #555;
-      font-family: inherit;
-      font-size: 11px;
-      padding: 3px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      letter-spacing: 1px;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    #btn-mic:hover { border-color: #00ff88; color: #00ff88; }
-    #btn-mic[data-active="true"] {
-      border-color: #00ff88;
-      color: #00ff88;
-    }
-
-    /* ── Detected pitch display ── */
-    #detected-pitch {
-      height: 20px;
-      font-size: 11px;
-      color: #444;
-      text-align: center;
-      letter-spacing: 1px;
-      margin-bottom: 4px;
-    }
-    #detected-pitch[data-hearing="true"] { color: #00ff88; }
 
     /* ── Score bar ── */
     .score-bar {
@@ -160,33 +128,51 @@
     }
 
     .note-buttons {
+      position: relative;
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-bottom: 20px;
+      gap: 3px;
+      width: 100%;
+      max-width: 400px;
+      height: 72px;
+      margin: 0 auto 20px;
     }
 
     .note-btn {
+      flex: 1;
       background: #1a1a1a;
       border: 1px solid #2a2a2a;
       color: #888;
       font-family: inherit;
       font-size: 13px;
       font-weight: bold;
-      width: 46px;
-      height: 52px;
-      border-radius: 6px;
+      border-radius: 0 0 6px 6px;
       cursor: pointer;
       letter-spacing: 0;
       transition: border-color 0.15s, color 0.15s, background 0.15s;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 5px;
     }
     .note-btn[data-black="true"] {
+      position: absolute;
+      top: 0;
+      width: 12%;
+      height: 55%;
       background: #111;
+      border: 1px solid #2a2a2a;
       color: #555;
-      height: 44px;
       font-size: 11px;
+      border-radius: 0 0 4px 4px;
+      z-index: 1;
+      align-items: flex-end;
+      padding-bottom: 3px;
     }
+    .note-btn[data-note="C#"] { left: 8.5%;  }
+    .note-btn[data-note="D#"] { left: 22.5%; }
+    .note-btn[data-note="F#"] { left: 51%;   }
+    .note-btn[data-note="G#"] { left: 65%;   }
+    .note-btn[data-note="A#"] { left: 79.5%; }
     .note-btn:hover {
       border-color: #00ff88;
       color: #00ff88;
@@ -243,6 +229,32 @@
     }
     .legend-note { color: #333; min-width: 28px; }
 
+    /* ── Representation select ── */
+    .repr-bar {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .repr-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #333;
+    }
+    #repr-select {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #888;
+      font-family: inherit;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
     /* ── Play-note button ── */
     #btn-play-note {
       position: fixed;
@@ -268,6 +280,18 @@
       background: #161f18;
     }
     #btn-play-note:active { background: #0f1a12; }
+
+    .input-config-link {
+      color: #444;
+      text-decoration: none;
+      font-size: 10px;
+      border: 1px solid #222;
+      border-radius: 4px;
+      padding: 3px 8px;
+      letter-spacing: 1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .input-config-link:hover { color: #00ff88; border-color: #00ff88; }
   </style>
 </head>
 <body>
@@ -275,12 +299,11 @@
   <!-- ── Header ── -->
   <header class="page-header">
     <a class="back-link" href="./index.html">← Back</a>
-    <span class="page-title">Note Reading</span>
+    <span class="page-title">Flashcards</span>
     <div class="input-status">
       <span id="midi-status">MIDI —</span>
       <select id="midi-device-select"><option>— no devices —</option></select>
-      <button id="btn-mic" data-active="false">🎤 Mic</button>
-      <span id="audio-status"></span>
+      <a class="input-config-link" href="./input-config.html">⚙</a>
     </div>
   </header>
 
@@ -290,13 +313,19 @@
     <span id="streak">streak  0</span>
   </div>
 
+  <!-- ── Representation ── -->
+  <div class="repr-bar">
+    <span class="repr-label">View:</span>
+    <select id="repr-select">
+      <option value="staff">Staff Notation</option>
+      <option value="fingering">Oboe Fingering</option>
+    </select>
+  </div>
+
   <!-- ── Staff ── -->
   <div class="staff-wrap">
     <canvas id="staff-canvas" width="560" height="200"></canvas>
   </div>
-
-  <!-- ── Detected pitch (mic) ── -->
-  <div id="detected-pitch"></div>
 
   <!-- ── Feedback ── -->
   <div id="feedback" data-state=""></div>

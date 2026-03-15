@@ -5,10 +5,9 @@
 // scoring, and communicates results via callbacks.
 // ─────────────────────────────────────────────
 
-import { StaffRenderer } from './StaffRenderer.js';
-
-// All 12 chromatic pitch names (sharps)
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+import { StaffRenderer }                from './StaffRenderer.js';
+import { FingeringRenderer, FINGERING_H } from '../fingering/FingeringRenderer.js';
+import { pitchClass }                  from '../core/NoteInfo.js';
 
 // ── Note pools by clef ────────────────────────
 // Treble: C4 (60) through A♯5 (82)
@@ -24,10 +23,14 @@ export class FlashcardGame {
    * @param {Synth|null}        synth  — optional Synth instance for note playback
    */
   constructor(canvas, bus, ui, synth = null) {
-    this.renderer    = new StaffRenderer(canvas);
-    this.bus         = bus;
-    this.ui          = ui;
-    this._synth      = synth;
+    this._canvas            = canvas;
+    this._staffRenderer     = new StaffRenderer(canvas);
+    this._fingeringRenderer = new FingeringRenderer(canvas);
+    this._mode              = 'staff';
+    this.renderer           = this._staffRenderer;
+    this.bus                = bus;
+    this.ui                 = ui;
+    this._synth             = synth;
 
     // 'treble' | 'bass' | 'both'
     this._clefMode   = 'treble';
@@ -59,6 +62,20 @@ export class FlashcardGame {
   setClefMode(mode) {
     this._clefMode = mode;
     this.nextNote();
+  }
+
+  /**
+   * Switch between 'staff' and 'fingering' display modes.
+   * @param {'staff'|'fingering'} mode
+   */
+  setMode(mode) {
+    if (mode === this._mode) return;
+    this._mode    = mode;
+    this.renderer = mode === 'fingering' ? this._fingeringRenderer : this._staffRenderer;
+    this._canvas.height = mode === 'fingering' ? FINGERING_H : 200;
+    if (this.currentNote !== null) {
+      this.renderer.render(this.currentNote, 'normal');
+    }
   }
 
   start() {
@@ -96,7 +113,7 @@ export class FlashcardGame {
     this.answered = true;
     this.total++;
 
-    const correct = noteName === info.letter;
+    const correct = noteName === pitchClass(this.currentNote);
 
     if (correct) {
       this.correct++;
@@ -135,7 +152,7 @@ export class FlashcardGame {
 
   /** Convert MIDI note number to its pitch name (e.g. 'C', 'C#'). */
   _pitchName(midiNote) {
-    return NOTE_NAMES[midiNote % 12];
+    return pitchClass(midiNote);
   }
 
   /** Play the current note immediately (for manual replay button). */

@@ -4,39 +4,37 @@
 
 import { EventBus }       from './core/EventBus.js';
 import { MIDIInput }      from './input/MIDIInput.js';
-import { AudioInput }     from './input/AudioInput.js';
-import { createPitchBridge, detectPitch, freqToNote } from './core/PitchDetector.js';
 import { SongEngine }     from './rhythm/SongEngine.js';
 import { Highway }        from './rhythm/Highway.js';
 import { HitJudge }       from './rhythm/HitJudge.js';
 import { listSongs, getSong } from './rhythm/DemoSongs.js';
 import { MidiParser }        from './rhythm/MidiParser.js';
 import { StaffHighway }      from './rhythm/StaffHighway.js';
+import { FingeringHighway }  from './rhythm/FingeringHighway.js';
 import { Synth }             from './audio/Synth.js';
 
 // ── Bootstrap ──
 const bus          = new EventBus();
 const midiInput    = new MIDIInput(bus);
-const audioInput   = new AudioInput(bus);
 const engine       = new SongEngine(bus);
 const synth        = new Synth();
 const canvas       = document.getElementById('highway-canvas');
-const highway      = new Highway(canvas, bus);
-const staffHighway = new StaffHighway(canvas, bus);
+const highway          = new Highway(canvas, bus);
+const staffHighway     = new StaffHighway(canvas, bus);
+const fingeringHighway = new FingeringHighway(canvas, bus);
 const judge        = new HitJudge(bus, engine);
 
 // ── View mode ──
-let viewMode = 'piano';  // 'piano' | 'staff'
+let viewMode = 'piano';  // 'piano' | 'staff' | 'fingering'
 function activeHighway() {
-  return viewMode === 'staff' ? staffHighway : highway;
+  if (viewMode === 'staff')     return staffHighway;
+  if (viewMode === 'fingering') return fingeringHighway;
+  return highway;
 }
 
 // ── DOM refs ──
 const midiStatus   = document.getElementById('midi-status');
-const audioStatus  = document.getElementById('audio-status');
-const micBtn       = document.getElementById('btn-mic');
 const deviceSelect = document.getElementById('midi-device-select');
-const detectedEl   = document.getElementById('detected-pitch');
 const songSelect   = document.getElementById('song-select');
 const songBpmEl    = document.getElementById('song-bpm');
 const scoreEl      = document.getElementById('score');
@@ -52,19 +50,15 @@ const noteButtons  = document.querySelectorAll('.note-btn');
 const resultsDiv   = document.getElementById('results');
 const backdrop     = document.getElementById('backdrop');
 const resultsClose = document.getElementById('results-close');
-const viewBtns     = document.querySelectorAll('.view-btn');
+const viewSelect   = document.getElementById('view-select');
 const masterVolEl  = document.getElementById('master-vol');
 const metDialEl    = document.getElementById('met-dial');
 const beatIndicator = document.getElementById('beat-indicator');
 
-// ── View toggle ──
-viewBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    viewMode = btn.dataset.view;
-    viewBtns.forEach(b => b.classList.toggle('active', b.dataset.view === viewMode));
-    // Re-draw current frame in new mode
-    activeHighway().draw(engine.position, engine.notes);
-  });
+// ── View select ──
+viewSelect.addEventListener('change', () => {
+  viewMode = viewSelect.value;
+  activeHighway().draw(engine.position, engine.notes);
 });
 
 // ── Playback controls ──
@@ -151,9 +145,10 @@ function loadSelectedSong() {
     ? `${song.bpm} BPM (${noteCount} notes)`
     : `${song.bpm} BPM`;
   engine.load(song);
-  // Pass timing info to both renderers for beat/bar lines
+  // Pass timing info to all renderers for beat/bar lines
   highway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
   staffHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
+  fingeringHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
   judge.reset();
   updateScoreUI();
 }
@@ -217,6 +212,7 @@ function applyMidiTrack(parsed, trackIndex) {
   engine.load(customSong);
   highway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
   staffHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
+  fingeringHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
   judge.reset();
   updateScoreUI();
   buildBeatPips();
@@ -297,47 +293,6 @@ bus.on('midi:noteOn', ({ note }) => {
     judge.judge(name);
     activeHighway().setLaneActive(name, true);
     setTimeout(() => activeHighway().setLaneActive(name, false), 100);
-  }
-});
-
-// ── Audio / Mic ──
-let micActive  = false;
-let pitchUnsub = null;
-
-micBtn.addEventListener('click', async () => {
-  if (!micActive) await audioInput.start();
-  else audioInput.stop();
-});
-
-bus.on('audio:state', ({ active, error }) => {
-  micActive = active;
-  micBtn.dataset.active = String(active);
-  if (active) {
-    audioStatus.textContent   = 'Listening';
-    audioStatus.dataset.state = 'ok';
-    if (!pitchUnsub) {
-      pitchUnsub = createPitchBridge(bus, { centsThreshold: 25, stabilityCount: 3 });
-    }
-  } else {
-    audioStatus.textContent   = error ? 'Mic error' : '';
-    audioStatus.dataset.state = error ? 'err' : '';
-    detectedEl.textContent    = '';
-    detectedEl.dataset.hearing = 'false';
-    if (pitchUnsub) { pitchUnsub(); pitchUnsub = null; }
-  }
-});
-
-bus.on('audio:frame', ({ timeDomain, sampleRate }) => {
-  if (!micActive) return;
-  const freq = detectPitch(timeDomain, sampleRate);
-  if (freq) {
-    const { noteName, octave, cents } = freqToNote(freq);
-    const sign = cents >= 0 ? '+' : '';
-    detectedEl.textContent     = `hearing: ${noteName}${octave}  (${sign}${cents}\u00A2)`;
-    detectedEl.dataset.hearing = 'true';
-  } else {
-    detectedEl.textContent     = 'hearing: \u2014';
-    detectedEl.dataset.hearing = 'false';
   }
 });
 
@@ -541,7 +496,6 @@ backLink.addEventListener('click', (e) => {
   e.preventDefault();
   engine.stop();
   clearSynth();
-  audioInput.stop();
   window.location.href = backLink.href;
 });
 
