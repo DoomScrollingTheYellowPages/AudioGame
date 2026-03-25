@@ -8,21 +8,26 @@
 
 import { getPrimaryFingering }  from './OboeFingeringData.js';
 import { getNoteInfo }         from '../core/NoteInfo.js';
+import { Theme }               from '../core/Theme.js';
 
-const COLORS = {
-  bg:         '#141414',
-  body:       '#1c1c1c',
-  bodyBorder: '#363636',
-  holeOpen:   '#141414',
-  holeBorder: '#555',
-  holeClosed: '#00ff88',
-  keyOpen:    '#141414',
-  keyBorder:  '#444',
-  octClosed:  '#00aaff',
-  sideClosed: '#ffaa00',
-  handLabel:  '#333',
-  dimText:    '#2a2a2a',
-};
+function getColors() {
+  const t = Theme.current();
+  return {
+    bg:         t.bg,
+    body:       t.controlBg,
+    bodyBorder: t.controlBorder,
+    holeOpen:   t.bg,
+    holeBorder: '#555',
+    holeClosed: t.accent,
+    keyOpen:    t.bg,
+    keyBorder:  '#444',
+    octClosed:  '#00aaff',
+    sideClosed: '#ffaa00',
+    handLabel:  t.dimText,
+    dimText:    t.dimText,
+    text:       t.text,
+  };
+}
 
 // ── Canvas dimensions for fingering mode ──────
 export const FINGERING_W = 560;
@@ -60,6 +65,7 @@ export class FingeringRenderer {
    * @param {'normal'|'correct'|'wrong'} state
    */
   render(midiNote, state = 'normal') {
+    const COLORS = getColors();
     const f   = getPrimaryFingering(midiNote);
     const ctx = this._ctx;
     const W   = this._canvas.width;
@@ -81,7 +87,7 @@ export class FingeringRenderer {
 
     // ── Dividing line between hands ───────────────────────
     const gapY = (HOLE_Y.l3 + HOLE_Y.r1) / 2;
-    ctx.strokeStyle = '#2a2a2a';
+    ctx.strokeStyle = COLORS.bodyBorder;
     ctx.lineWidth   = 1;
     ctx.beginPath();
     ctx.moveTo(CX - BODY_W / 2 - 20, gapY);
@@ -140,7 +146,8 @@ export class FingeringRenderer {
     if (state !== 'normal') {
       ctx.save();
       ctx.globalAlpha = 0.07;
-      ctx.fillStyle   = state === 'correct' ? '#00ff88' : '#ff4444';
+      const t = Theme.current();
+      ctx.fillStyle   = state === 'correct' ? t.accent : t.error;
       ctx.fillRect(0, 0, W, H);
       ctx.restore();
     }
@@ -158,7 +165,8 @@ export class FingeringRenderer {
 
   // ── Private helpers ──────────────────────────
 
-  _drawHole(x, y, r, pressed) {
+  _drawHole(x, y, r, pressed, COLORS) {
+    if (!COLORS) COLORS = getColors();
     const ctx = this._ctx;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);

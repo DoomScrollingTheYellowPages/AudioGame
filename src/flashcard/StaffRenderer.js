@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────
 
 import { getNoteInfo } from '../core/NoteInfo.js';
+import { Theme } from '../core/Theme.js';
 
 export class StaffRenderer {
   constructor(canvas) {
@@ -106,9 +107,10 @@ export class StaffRenderer {
     const y      = this._staffY(staffPos);
     const stemUp = staffPos < 4;
 
-    const color = state === 'correct' ? '#00ff88'
-                : state === 'wrong'   ? '#ff4444'
-                :                       '#e0e0e0';
+    const t = Theme.current();
+    const color = state === 'correct' ? t.accent
+                : state === 'wrong'   ? t.error
+                :                       t.text;
 
     this._drawLedgerLines(staffPos, color);
 

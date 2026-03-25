@@ -6,6 +6,8 @@
 // on the left edge. All 12 chromatic notes get a lane.
 // ─────────────────────────────────────────────
 
+import { Theme } from '../core/Theme.js';
+
 // All 12 pitch classes in chromatic order
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const LANE_COUNT  = 12;
@@ -21,26 +23,27 @@ const HIT_ZONE_X    = 80;        // pixels from left edge
 const LOOK_AHEAD    = 3000;      // ms of notes visible ahead
 const PIXELS_PER_MS = 0.25;      // scroll speed (canvas pixels per ms)
 
-const COLORS = {
-  bg:             '#0d0d0d',
-  laneWhite:      '#141414',
-  laneBlack:      '#0a0a0a',
-  laneLine:       '#1a1a1a',
-  hitZone:        '#333',
-  hitZoneActive:  '#00ff88',
-  note:           '#3a3a3a',
-  noteUpcoming:   '#555',
-  perfect:        '#00ff88',
-  great:          '#88cc44',
-  good:           '#ccaa22',
-  miss:           '#ff4444',
-  label:          '#444',
-  labelBlack:     '#2e2e2e',
-  labelActive:    '#00ff88',
-  beatLine:       '#1e1e1e',
-  barLine:        '#2a2a2a',
-  barLabel:       '#333',
-};
+function getColors() {
+  const t = Theme.current();
+  return {
+    bg: t.bg,
+    laneWhite: t.laneBg,
+    laneBlack: t.laneBgAlt,
+    laneLine: t.laneLine,
+    hitZone: t.hitZone,
+    hitZoneActive: t.hitZoneActive,
+    note: t.note,
+    noteActive: t.noteActive,
+    perfect: t.perfect,
+    great: t.great,
+    good: t.good,
+    miss: t.miss,
+    labelBlack: t.dimText,
+    labelActive: t.accent,
+    beatLine: t.beatLine,
+    barLine: t.barLine,
+  };
+}
 
 export class Highway {
   /**
@@ -81,6 +84,7 @@ export class Highway {
    * @param {Array}  notes     — full note array from SongEngine
    */
   draw(position, notes) {
+    const COLORS = getColors();
     const ctx  = this._ctx;
     const W    = this._canvas.width;
     const H    = this._canvas.height;
@@ -115,7 +119,7 @@ export class Highway {
       const isAct = this._activeLanes.has(name);
       ctx.fillStyle = isAct
         ? COLORS.labelActive
-        : (IS_BLACK[i] ? COLORS.labelBlack : COLORS.label);
+        : (IS_BLACK[i] ? COLORS.labelBlack : COLORS.barLine);
       ctx.fillText(name, HIT_ZONE_X / 2, row * laneH + laneH / 2);
     }
 
@@ -152,7 +156,7 @@ export class Highway {
       else if (state === 'Great')   ctx.fillStyle = COLORS.great;
       else if (state === 'Good')    ctx.fillStyle = COLORS.good;
       else if (state === 'miss')    ctx.fillStyle = COLORS.miss;
-      else ctx.fillStyle = dx <= 0 ? COLORS.note : COLORS.noteUpcoming;
+      else ctx.fillStyle = dx <= 0 ? COLORS.note : COLORS.noteActive;
 
       // Rounded rect
       const r = 3;
@@ -173,6 +177,7 @@ export class Highway {
 
   // ── Beat / bar line rendering ──────────────────
   _drawBeatLines(ctx, position, W, H) {
+    const COLORS = getColors();
     const msPerBeat  = 60000 / this._bpm;
     const beatsPerBar = this._meter[0];
 
@@ -206,7 +211,7 @@ export class Highway {
         const countInBeats  = Math.ceil(this._countIn / msPerBeat);
         const displayBar    = bar - Math.floor(countInBeats / beatsPerBar) + 1;
         if (displayBar >= 1) {
-          ctx.fillStyle = COLORS.barLabel;
+          ctx.fillStyle = COLORS.barLine;
           ctx.fillText(`${displayBar}`, x, 3);
         }
       }

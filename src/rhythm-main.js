@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────
 
 import { EventBus }       from './core/EventBus.js';
+import { Theme }          from './core/Theme.js';
 import { MIDIInput }      from './input/MIDIInput.js';
 import { SongEngine }     from './rhythm/SongEngine.js';
 import { Highway }        from './rhythm/Highway.js';
@@ -80,7 +81,7 @@ function drawMetDial(v) {
   ctx.beginPath();
   ctx.arc(w / 2, h / 2, r, 0.75 * Math.PI, 0.25 * Math.PI);
   ctx.lineWidth = 3;
-  ctx.strokeStyle = '#2a2a2a';
+  ctx.strokeStyle = Theme.current().controlBorder;
   ctx.stroke();
 
   // Value arc
@@ -89,7 +90,7 @@ function drawMetDial(v) {
   ctx.beginPath();
   ctx.arc(w / 2, h / 2, r, startAngle, endAngle);
   ctx.lineWidth = 3;
-  ctx.strokeStyle = v > 0 ? '#00ff88' : '#333';
+  ctx.strokeStyle = v > 0 ? Theme.current().accent : Theme.current().dimText;
   ctx.stroke();
 
   // Pointer dot
@@ -97,7 +98,7 @@ function drawMetDial(v) {
   const py = h / 2 + r * Math.sin(endAngle);
   ctx.beginPath();
   ctx.arc(px, py, 3, 0, Math.PI * 2);
-  ctx.fillStyle = '#e0e0e0';
+  ctx.fillStyle = Theme.current().text;
   ctx.fill();
 }
 

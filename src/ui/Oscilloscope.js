@@ -5,6 +5,8 @@
 // DOM:  owns a <canvas> inside the container
 // ─────────────────────────────────────────────
 
+import { Theme } from '../core/Theme.js';
+
 export class Oscilloscope {
   /**
    * @param {HTMLElement} container  Parent element to mount into
@@ -56,7 +58,7 @@ export class Oscilloscope {
   _drawIdle() {
     const { width: W, height: H } = this._canvas;
     this._ctx.clearRect(0, 0, W, H);
-    this._ctx.strokeStyle = '#1a1a1a';
+    this._ctx.strokeStyle = Theme.current().controlBorder;
     this._ctx.lineWidth = 1;
     this._ctx.beginPath();
     this._ctx.moveTo(0, H / 2);
@@ -78,8 +80,10 @@ export class Oscilloscope {
 
     ctx.clearRect(0, 0, W, H);
 
+    const t = Theme.current();
+
     // Centre line
-    ctx.strokeStyle = '#1a1a1a';
+    ctx.strokeStyle = t.controlBorder;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, H / 2);
@@ -96,9 +100,9 @@ export class Oscilloscope {
     const sliceW  = W / drawLen;
 
     ctx.beginPath();
-    ctx.strokeStyle = '#00ff88';
+    ctx.strokeStyle = t.accent;
     ctx.lineWidth   = 1.5;
-    ctx.shadowColor = '#00ff88';
+    ctx.shadowColor = t.accent;
     ctx.shadowBlur  = 4;
 
     for (let i = 0; i < drawLen; i++) {

@@ -8,6 +8,7 @@
 
 import { getPrimaryFingering } from '../fingering/OboeFingeringData.js';
 import { getNoteInfo }         from '../core/NoteInfo.js';
+import { Theme }               from '../core/Theme.js';
 
 // ── Scroll / timing (must match Highway constants) ──
 const HIT_ZONE_X    = 80;
@@ -45,31 +46,34 @@ const KEY_POS = {
   lowBb: { dx:  (BODY_W / 2 + KEY_R + 2), y: CARD_TOP + 121 },
 };
 
-const COLORS = {
-  bg:          '#0d0d0d',
-  cardBg:      '#111',
-  cardBorder:  '#1e1e1e',
-  body:        '#1c1c1c',
-  bodyBorder:  '#333',
-  holeOpen:    '#0d0d0d',
-  holeBorder:  '#555',
-  holeClosed:  '#00ff88',
-  keyOpen:     '#0d0d0d',
-  keyBorder:   '#444',
-  octClosed:   '#00aaff',
-  sideClosed:  '#ffaa00',
-  noteName:    '#444',
-  noteNameHit: '#00ff88',
-  hitZone:     '#333',
-  hitZoneActive: '#00ff88',
-  beatLine:    '#1e1e1e',
-  barLine:     '#2a2a2a',
-  barLabel:    '#333',
-  perfect:     '#00ff88',
-  great:       '#88cc44',
-  good:        '#ccaa22',
-  miss:        '#ff4444',
-};
+function getColors() {
+  const t = Theme.current();
+  return {
+    bg: t.bg,
+    cardBg: t.laneBg,
+    cardBorder: t.laneLine,
+    body: t.controlBg,
+    bodyBorder: t.controlBorder,
+    holeOpen: t.bg,
+    holeBorder: t.controlBorder,
+    holeClosed: t.accent,
+    keyOpen: t.bg,
+    keyBorder: t.controlBorder,
+    octClosed: '#00aaff',
+    sideClosed: '#ffaa00',
+    text: t.text,
+    noteNameHit: t.accent,
+    noteNameMiss: t.dimText,
+    hitZoneActive: t.hitZoneActive,
+    beatLine: t.beatLine,
+    barLine: t.barLine,
+    dimText: t.dimText,
+    perfect: t.perfect,
+    great: t.great,
+    good: t.good,
+    miss: t.miss,
+  };
+}
 
 export class FingeringHighway {
   /**
@@ -110,6 +114,7 @@ export class FingeringHighway {
    * @param {Array}  notes     full note array from SongEngine
    */
   draw(position, notes) {
+    const COLORS = getColors();
     const ctx = this._ctx;
     const W   = this._canvas.width;
     const H   = this._canvas.height;
@@ -122,7 +127,7 @@ export class FingeringHighway {
     this._drawBeatLines(ctx, position, W, H);
 
     // ── Hit zone ──
-    ctx.strokeStyle = this._activeLanes.size > 0 ? COLORS.hitZoneActive : COLORS.hitZone;
+    ctx.strokeStyle = this._activeLanes.size > 0 ? COLORS.hitZoneActive : COLORS.dimText;
     ctx.lineWidth   = 2;
     ctx.beginPath();
     ctx.moveTo(HIT_ZONE_X, 0);
@@ -157,6 +162,7 @@ export class FingeringHighway {
   // ── Private ──────────────────────────────────────────
 
   _drawCard(ctx, cx, midiNote, hitState) {
+    const COLORS = getColors();
     const f    = getPrimaryFingering(midiNote);
     const info = getNoteInfo(midiNote);
 
@@ -219,7 +225,8 @@ export class FingeringHighway {
   }
 
   _drawLabel(ctx, cx, name, hitState) {
-    ctx.fillStyle    = hitState ? COLORS.noteNameHit : COLORS.noteName;
+    const COLORS = getColors();
+    ctx.fillStyle    = hitState ? COLORS.noteNameHit : COLORS.noteNameMiss;
     ctx.font         = '8px "Courier New", monospace';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
@@ -227,6 +234,7 @@ export class FingeringHighway {
   }
 
   _drawHole(ctx, x, y, r, pressed) {
+    const COLORS = getColors();
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fillStyle   = pressed ? COLORS.holeClosed : COLORS.holeOpen;
@@ -263,6 +271,7 @@ export class FingeringHighway {
   }
 
   _drawBeatLines(ctx, position, W, H) {
+    const COLORS = getColors();
     const msPerBeat   = 60000 / this._bpm;
     const beatsPerBar = this._meter[0];
     const minTime     = position - 200;
@@ -291,7 +300,7 @@ export class FingeringHighway {
         const countInBeats  = Math.ceil(this._countIn / msPerBeat);
         const displayBar    = bar - Math.floor(countInBeats / beatsPerBar) + 1;
         if (displayBar >= 1) {
-          ctx.fillStyle = COLORS.barLabel;
+          ctx.fillStyle = COLORS.dimText;
           ctx.fillText(`${displayBar}`, x, 3);
         }
       }
