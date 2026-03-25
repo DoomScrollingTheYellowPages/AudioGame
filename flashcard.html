@@ -339,8 +339,16 @@
     </div>
   </header>
 
-  <!-- ── Score ── -->
+  <!-- ── Clef selector ── -->
   <div class="score-bar">
+    <label>Clef:
+      <select id="clef-select">
+        <option value="treble">Treble</option>
+        <option value="bass">Bass</option>
+        <option value="both">Both</option>
+      </select>
+    </label>
+    <span style="flex:1"></span>
     <span id="score">0 / 0  (0%)</span>
     <span id="streak">streak  0</span>
   </div>

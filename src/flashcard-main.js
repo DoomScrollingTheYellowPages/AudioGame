@@ -71,6 +71,14 @@ backLink.addEventListener('click', (e) => {
   window.location.href = backLink.href;
 });
 
+// ── Clef selector ──
+const clefSelect = document.getElementById('clef-select');
+if (clefSelect) {
+  clefSelect.addEventListener('change', () => {
+    game.setClefMode(clefSelect.value);
+  });
+}
+
 // ── Start ──
 midiInput.init();
 game.start();

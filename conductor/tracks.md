@@ -16,3 +16,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## [x] Track: Multi-Instrument Fingering Charts
 *Link: [./conductor/tracks/fingering_charts_20260325/](./conductor/tracks/fingering_charts_20260325/)*
+
+---
+
+## [~] Track: Chromatic Flashcard Support
+*Link: [./conductor/tracks/chromatic_flashcards_20260325/](./conductor/tracks/chromatic_flashcards_20260325/)*

@@ -74,7 +74,7 @@ export class StaffRenderer {
 
   _drawStaff() {
     const ctx = this.ctx;
-    ctx.strokeStyle = '#555';
+    ctx.strokeStyle = Theme.current().dimText;
     ctx.lineWidth   = 1.5;
     for (let i = 0; i < 5; i++) {
       const y = this.STAFF_TOP_Y + i * this.LINE_SPACING;
@@ -87,7 +87,7 @@ export class StaffRenderer {
 
   _drawTrebleClef() {
     const ctx = this.ctx;
-    ctx.fillStyle    = '#aaa';
+    ctx.fillStyle    = Theme.current().mid || '#aaa';
     ctx.font         = '80px Georgia, "Times New Roman", serif';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText('\u{1D11E}', this.STAFF_LEFT - 4, this._staffY(0) + 12);
@@ -95,7 +95,7 @@ export class StaffRenderer {
 
   _drawBassClef() {
     const ctx = this.ctx;
-    ctx.fillStyle    = '#aaa';
+    ctx.fillStyle    = Theme.current().mid || '#aaa';
     ctx.font         = '44px Georgia, "Times New Roman", serif';
     ctx.textBaseline = 'alphabetic';
     // Anchor so the glyph's F-line marker aligns with staffPos 6 (F3 = 4th line)
