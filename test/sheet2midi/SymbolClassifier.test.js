@@ -166,5 +166,33 @@ describe('SymbolClassifier', () => {
       const centers = sc.distanceTransformCenters(bin, w, bbox);
       assert.ok(centers.length >= 1, `expected at least 1 center, got ${centers.length}`);
     });
+
+    it('finds two centers for two touching noteheads', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      const w = 50, h = 30;
+      const bin = new Uint8Array(w * h).fill(255);
+      // Draw two 12x12 blobs connected by a thin 2px bridge
+      // Blob 1: x=2..13, y=9..20
+      for (let y = 9; y < 21; y++) {
+        for (let x = 2; x < 14; x++) bin[y * w + x] = 0;
+      }
+      // Blob 2: x=18..29, y=9..20
+      for (let y = 9; y < 21; y++) {
+        for (let x = 18; x < 30; x++) bin[y * w + x] = 0;
+      }
+      // Connect with a thin bridge at y=14..15
+      for (let x = 14; x < 18; x++) {
+        bin[14 * w + x] = 0;
+        bin[15 * w + x] = 0;
+      }
+      const bbox = { x: 2, y: 9, width: 28, height: 12 };
+      const centers = sc.distanceTransformCenters(bin, w, bbox);
+      assert.ok(centers.length >= 2, `expected >= 2 centers for touching noteheads, got ${centers.length}`);
+      // The two centers should be in different halves
+      const xs = centers.map(c => c.x).sort((a, b) => a - b);
+      assert.ok(xs[0] < 16, `first center x=${xs[0]} should be < 16`);
+      assert.ok(xs[xs.length - 1] > 16, `last center x=${xs[xs.length - 1]} should be > 16`);
+    });
   });
 });

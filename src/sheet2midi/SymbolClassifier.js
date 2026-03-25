@@ -313,11 +313,14 @@ export class SymbolClassifier {
     const h = bbox.height;
     const dt = new Float64Array(w * h);
 
-    // Initialize: 0 for foreground, Infinity for background
+    // Initialize: Infinity for foreground, 0 for background.
+    // Treat bbox boundary pixels as background so edge foreground
+    // pixels get low DT values, making true blob centers stand out.
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const imgIdx = (bbox.y + y) * width + (bbox.x + x);
-        dt[y * w + x] = binary[imgIdx] === 0 ? Infinity : 0;
+        const isBorder = (y === 0 || y === h - 1 || x === 0 || x === w - 1);
+        dt[y * w + x] = (!isBorder && binary[imgIdx] === 0) ? Infinity : 0;
       }
     }
 
