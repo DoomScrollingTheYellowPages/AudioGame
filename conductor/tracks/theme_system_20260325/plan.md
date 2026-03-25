@@ -2,7 +2,7 @@
 
 ## Phase 1: Theme Infrastructure
 
-- [ ] Task: Create the shared theme.js module
+- [~] Task: Create the shared theme.js module
   - [ ] Sub-task: Write tests — test that theme.js exports a Theme object with correct color/font values for all three themes, test theme switching updates the object, test localStorage read/write
   - [ ] Sub-task: Implement — create src/core/Theme.js with theme definitions, get/set/apply methods, localStorage persistence
 - [ ] Task: Define CSS custom properties for all three themes
