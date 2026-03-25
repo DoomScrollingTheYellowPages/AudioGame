@@ -70,13 +70,13 @@
 
 ## Phase 6: End-to-End Integration Testing
 
-- [~] Task: Create synthetic test images for pipeline validation
-  - [ ] Sub-task: Write tests — generate simple sheet music images programmatically (C scale, simple melody with accidentals, piece with rests) using Canvas API
-  - [ ] Sub-task: Implement — build a test image generator that creates known-good sheet music images with predictable OMR output
-- [ ] Task: End-to-end pipeline test with synthetic images
-  - [ ] Sub-task: Write tests — test full pipeline from image → MIDI for each synthetic image, verifying note count, pitches, durations, and rest positions match expected output
-  - [ ] Sub-task: Implement — fix any pipeline bugs discovered during end-to-end testing
-- [ ] Task: End-to-end pipeline test with real sheet music
-  - [ ] Sub-task: Write tests — test pipeline with simple real-world sheet music from docs/zSheet (e.g., Bach Invention No. 01), verify output is reasonable (correct number of notes, plausible pitches)
-  - [ ] Sub-task: Implement — fix robustness issues discovered with real sheet music (noise handling, spacing variations, etc.)
-- [ ] Task: Conductor - User Manual Verification 'End-to-End Integration Testing' (Protocol in workflow.md)
+- [x] Task: Create synthetic test images for pipeline validation 0bc1438
+  - [x] Sub-task: Write tests — generate simple sheet music images programmatically (C scale, simple melody with accidentals, piece with rests) using Canvas API
+  - [x] Sub-task: Implement — build a test image generator that creates known-good sheet music images with predictable OMR output
+- [x] Task: End-to-end pipeline test with synthetic images 0bc1438
+  - [x] Sub-task: Write tests — test full pipeline from image → MIDI for each synthetic image, verifying note count, pitches, durations, and rest positions match expected output
+  - [x] Sub-task: Implement — fix any pipeline bugs discovered during end-to-end testing
+- [x] Task: End-to-end pipeline test with real sheet music 0bc1438
+  - [x] Sub-task: Write tests — test pipeline with simple real-world sheet music from docs/zSheet (e.g., Bach Invention No. 01), verify output is reasonable (correct number of notes, plausible pitches)
+  - [x] Sub-task: Implement — fix robustness issues discovered with real sheet music (noise handling, spacing variations, etc.)
+- [~] Task: Conductor - User Manual Verification 'End-to-End Integration Testing' (Protocol in workflow.md)
