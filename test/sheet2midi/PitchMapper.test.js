@@ -173,6 +173,87 @@ describe('PitchMapper', () => {
     });
   });
 
+  // ── Ledger line notes via assignPitches ─────
+  describe('ledger line notes', () => {
+    it('assigns correct pitch to middle C (one ledger line below treble staff)', () => {
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const staffGroup = [100, 110, 120, 130, 140]; // staffSpace = 10
+      const staffSpace = 10;
+      // Middle C is 1 ledger line below treble staff = staffPos -2
+      // y = bottomLine + 1 staffSpace = 140 + 10 = 150
+      const symbols = [
+        { type: SymbolType.CLEF_TREBLE, component: { centroid: { x: 20, y: 120 }, bbox: { x: 10, width: 20 } } },
+        { type: SymbolType.FILLED_NOTEHEAD, component: { centroid: { x: 100, y: 150 }, bbox: { x: 95, width: 10 } } }
+      ];
+      const notes = pm.assignPitches(symbols, [staffGroup], staffSpace);
+      assert.equal(notes.length, 1);
+      assert.equal(notes[0].noteName, 'C');
+      assert.equal(notes[0].midiNote, 60); // C4 = MIDI 60
+    });
+
+    it('assigns correct pitch to A5 (one ledger line above treble staff)', () => {
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const staffGroup = [100, 110, 120, 130, 140];
+      const staffSpace = 10;
+      // A5: staffPos = 10 (one ledger line above top line)
+      // y = topLine - 1 staffSpace = 100 - 10 = 90
+      const symbols = [
+        { type: SymbolType.CLEF_TREBLE, component: { centroid: { x: 20, y: 120 }, bbox: { x: 10, width: 20 } } },
+        { type: SymbolType.FILLED_NOTEHEAD, component: { centroid: { x: 100, y: 90 }, bbox: { x: 95, width: 10 } } }
+      ];
+      const notes = pm.assignPitches(symbols, [staffGroup], staffSpace);
+      assert.equal(notes.length, 1);
+      assert.equal(notes[0].noteName, 'A');
+      assert.equal(notes[0].octave, 5);
+      assert.equal(notes[0].midiNote, 81); // A5
+    });
+
+    it('assigns correct pitch to C6 (two ledger lines above treble staff)', () => {
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const staffGroup = [100, 110, 120, 130, 140];
+      const staffSpace = 10;
+      // C6: absDiatonic=42, baseDiatonic=30, staffPos=12, y = 140 - 12*5 = 80
+      const symbols = [
+        { type: SymbolType.CLEF_TREBLE, component: { centroid: { x: 20, y: 120 }, bbox: { x: 10, width: 20 } } },
+        { type: SymbolType.FILLED_NOTEHEAD, component: { centroid: { x: 100, y: 80 }, bbox: { x: 95, width: 10 } } }
+      ];
+      const notes = pm.assignPitches(symbols, [staffGroup], staffSpace);
+      assert.equal(notes.length, 1);
+      assert.equal(notes[0].noteName, 'C');
+      assert.equal(notes[0].octave, 6);
+      assert.equal(notes[0].midiNote, 84); // C6
+    });
+  });
+
+  // ── detectLedgerLines ──────────────────────
+  describe('detectLedgerLines', () => {
+    it('detects ledger line below staff', () => {
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const w = 100, h = 200;
+      const bin = new Uint8Array(w * h).fill(255);
+      const staffGroup = [100, 110, 120, 130, 140];
+      const staffSpace = 10;
+      // Draw a ledger line at y=150 (one staffSpace below bottom)
+      for (let x = 40; x < 60; x++) bin[150 * w + x] = 0;
+      const count = pm.detectLedgerLines(bin, w, { x: 50, y: 152 }, staffGroup, staffSpace);
+      assert.equal(count, 1);
+    });
+
+    it('returns 0 when note is on the staff', () => {
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const w = 100, h = 200;
+      const bin = new Uint8Array(w * h).fill(255);
+      const staffGroup = [100, 110, 120, 130, 140];
+      const count = pm.detectLedgerLines(bin, w, { x: 50, y: 120 }, staffGroup, 10);
+      assert.equal(count, 0);
+    });
+  });
+
   // ── applyAccidentals ───────────────────────
   describe('applyAccidentals', () => {
     it('applies key signature sharps', () => {

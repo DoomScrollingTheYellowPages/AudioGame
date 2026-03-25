@@ -30,7 +30,7 @@
 
 ## Phase 2: Ledger Line Support
 
-- [ ] Task: Activate ledger line detection in PitchMapper
+- [~] Task: Activate ledger line detection in PitchMapper
   - [ ] Sub-task: Write tests — test pitch assignment for notes on ledger lines above treble staff (A5, B5, C6) and below bass staff (C2, B1, A1), and middle C on both staves
   - [ ] Sub-task: Implement — connect the existing ledger line detection code into the pitch assignment pipeline, ensure y-positions beyond staff bounds are correctly quantized
 - [ ] Task: Handle ledger line rendering artifacts in StaffAnalyzer
