@@ -5,28 +5,28 @@
 - [x] Task: Set up test framework and test runner for the project d542214
   - [x] Sub-task: Write tests — select a browser-compatible test runner (or lightweight Node-based harness) and configure it for the project's zero-dependency, ES module architecture
   - [x] Sub-task: Implement — create the test runner configuration and a sample test to validate the setup works
-- [~] Task: Write baseline unit tests for ImageProcessor
-  - [ ] Sub-task: Write tests — test grayscale conversion, Otsu threshold, Sauvola binarization, median filter, and border cropping
-  - [ ] Sub-task: Implement — fix any bugs discovered during test writing
-- [ ] Task: Write baseline unit tests for StaffAnalyzer
-  - [ ] Sub-task: Write tests — test horizontal projection, staff line detection, grouping into 5-line staves, and staff line removal
-  - [ ] Sub-task: Implement — fix any bugs discovered during test writing
-- [ ] Task: Write baseline unit tests for ComponentLabeler
-  - [ ] Sub-task: Write tests — test connected component labeling, Union-Find, feature extraction, and size filtering
-  - [ ] Sub-task: Implement — fix any bugs discovered during test writing
-- [ ] Task: Write baseline unit tests for SymbolClassifier
-  - [ ] Sub-task: Write tests — test heuristic classification rules for all 18 symbol types, confidence scoring
-  - [ ] Sub-task: Implement — fix any bugs discovered during test writing
-- [ ] Task: Write baseline unit tests for PitchMapper
-  - [ ] Sub-task: Write tests — test clef detection, position quantization, pitch calculation for treble and bass clefs, key signature detection, accidental pairing and application
-  - [ ] Sub-task: Implement — fix any bugs discovered during test writing
-- [ ] Task: Write baseline unit tests for DurationMapper
-  - [ ] Sub-task: Write tests — test base duration assignment, beam/flag counting, augmentation dots, rest classification
-  - [ ] Sub-task: Implement — fix any bugs discovered during test writing
-- [ ] Task: Write baseline unit tests for GrammarValidator
-  - [ ] Sub-task: Write tests — test measure completeness checking, temporal ordering, chord detection
-  - [ ] Sub-task: Implement — fix any bugs discovered during test writing
-- [ ] Task: Conductor - User Manual Verification 'Testing Infrastructure & Baseline Coverage' (Protocol in workflow.md)
+- [x] Task: Write baseline unit tests for ImageProcessor 187d3f3
+  - [x] Sub-task: Write tests — test grayscale conversion, Otsu threshold, Sauvola binarization, median filter, and border cropping
+  - [x] Sub-task: Implement — fix any bugs discovered during test writing
+- [x] Task: Write baseline unit tests for StaffAnalyzer 3a3cdc5
+  - [x] Sub-task: Write tests — test horizontal projection, staff line detection, grouping into 5-line staves, and staff line removal
+  - [x] Sub-task: Implement — fix any bugs discovered during test writing
+- [x] Task: Write baseline unit tests for ComponentLabeler 3a3cdc5
+  - [x] Sub-task: Write tests — test connected component labeling, Union-Find, feature extraction, and size filtering
+  - [x] Sub-task: Implement — fix any bugs discovered during test writing
+- [x] Task: Write baseline unit tests for SymbolClassifier 3a3cdc5
+  - [x] Sub-task: Write tests — test heuristic classification rules for all 18 symbol types, confidence scoring
+  - [x] Sub-task: Implement — fix any bugs discovered during test writing
+- [x] Task: Write baseline unit tests for PitchMapper 3a3cdc5
+  - [x] Sub-task: Write tests — test clef detection, position quantization, pitch calculation for treble and bass clefs, key signature detection, accidental pairing and application
+  - [x] Sub-task: Implement — fix any bugs discovered during test writing
+- [x] Task: Write baseline unit tests for DurationMapper 3a3cdc5
+  - [x] Sub-task: Write tests — test base duration assignment, beam/flag counting, augmentation dots, rest classification
+  - [x] Sub-task: Implement — fix any bugs discovered during test writing
+- [x] Task: Write baseline unit tests for GrammarValidator 3a3cdc5
+  - [x] Sub-task: Write tests — test measure completeness checking, temporal ordering, chord detection
+  - [x] Sub-task: Implement — fix any bugs discovered during test writing
+- [~] Task: Conductor - User Manual Verification 'Testing Infrastructure & Baseline Coverage' (Protocol in workflow.md)
 
 ## Phase 2: Ledger Line Support
 
