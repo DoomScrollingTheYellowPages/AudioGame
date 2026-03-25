@@ -33,10 +33,10 @@
 - [x] Task: Activate ledger line detection in PitchMapper 99e8cd5
   - [x] Sub-task: Write tests — test pitch assignment for notes on ledger lines above treble staff (A5, B5, C6) and below bass staff (C2, B1, A1), and middle C on both staves
   - [x] Sub-task: Implement — connect the existing ledger line detection code into the pitch assignment pipeline, ensure y-positions beyond staff bounds are correctly quantized
-- [~] Task: Handle ledger line rendering artifacts in StaffAnalyzer
-  - [ ] Sub-task: Write tests — test that short horizontal segments near noteheads outside staff bounds are detected as ledger lines, not noise
-  - [ ] Sub-task: Implement — add ledger line detection to StaffAnalyzer so they are preserved during staff line removal and available for pitch mapping
-- [ ] Task: Conductor - User Manual Verification 'Ledger Line Support' (Protocol in workflow.md)
+- [x] Task: Handle ledger line rendering artifacts in StaffAnalyzer a1acaad
+  - [x] Sub-task: Write tests — test that short horizontal segments near noteheads outside staff bounds are detected as ledger lines, not noise
+  - [x] Sub-task: Implement — add ledger line detection to StaffAnalyzer so they are preserved during staff line removal and available for pitch mapping
+- [~] Task: Conductor - User Manual Verification 'Ledger Line Support' (Protocol in workflow.md)
 
 ## Phase 3: Touching Notehead Separation
 
