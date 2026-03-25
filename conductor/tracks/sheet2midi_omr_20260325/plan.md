@@ -1,6 +1,6 @@
 # Plan: Complete the Sheet2MIDI OMR Pipeline
 
-## Phase 1: Testing Infrastructure & Baseline Coverage
+## Phase 1: Testing Infrastructure & Baseline Coverage [checkpoint: cdf2baa]
 
 - [x] Task: Set up test framework and test runner for the project d542214
   - [x] Sub-task: Write tests — select a browser-compatible test runner (or lightweight Node-based harness) and configure it for the project's zero-dependency, ES module architecture
@@ -26,7 +26,7 @@
 - [x] Task: Write baseline unit tests for GrammarValidator 3a3cdc5
   - [x] Sub-task: Write tests — test measure completeness checking, temporal ordering, chord detection
   - [x] Sub-task: Implement — fix any bugs discovered during test writing
-- [~] Task: Conductor - User Manual Verification 'Testing Infrastructure & Baseline Coverage' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Testing Infrastructure & Baseline Coverage' (Protocol in workflow.md) cdf2baa
 
 ## Phase 2: Ledger Line Support
 
