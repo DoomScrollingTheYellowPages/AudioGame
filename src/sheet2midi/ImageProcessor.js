@@ -247,6 +247,146 @@ export class ImageProcessor {
     return out;
   }
 
+  /**
+   * Apply 3×3 median filter for noise removal.
+   * Replaces each pixel with the median of its 3×3 neighborhood.
+   * @param {Uint8Array} gray
+   * @param {number} width
+   * @param {number} height
+   * @returns {Uint8Array}
+   */
+  medianFilter(gray, width, height) {
+    const out = new Uint8Array(gray.length);
+    const buf = new Uint8Array(9);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (y === 0 || y === height - 1 || x === 0 || x === width - 1) {
+          out[y * width + x] = gray[y * width + x];
+          continue;
+        }
+        let k = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            buf[k++] = gray[(y + dy) * width + (x + dx)];
+          }
+        }
+        // Partial sort to find median (index 4 of 9)
+        for (let i = 0; i < 5; i++) {
+          let minIdx = i;
+          for (let j = i + 1; j < 9; j++) {
+            if (buf[j] < buf[minIdx]) minIdx = j;
+          }
+          if (minIdx !== i) {
+            const tmp = buf[i];
+            buf[i] = buf[minIdx];
+            buf[minIdx] = tmp;
+          }
+        }
+        out[y * width + x] = buf[4];
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Crop border/margin regions with very low ink density.
+   * Divides image into a grid and trims rows/columns of cells
+   * that have less than minDensity black pixels.
+   * @param {Uint8Array} gray
+   * @param {number} width
+   * @param {number} height
+   * @param {number} [gridSize=16] - number of grid divisions per axis
+   * @param {number} [minDensity=0.01] - minimum black pixel ratio to keep
+   * @returns {{gray: Uint8Array, width: number, height: number, offsetX: number, offsetY: number}}
+   */
+  cropBorders(gray, width, height, gridSize = 16, minDensity = 0.01) {
+    // Compute a quick threshold for "black" pixels
+    const threshold = this.otsuThreshold(gray);
+
+    const cellW = Math.floor(width / gridSize);
+    const cellH = Math.floor(height / gridSize);
+    if (cellW < 2 || cellH < 2) return { gray, width, height, offsetX: 0, offsetY: 0 };
+
+    // Compute density for each grid cell
+    const density = new Float32Array(gridSize * gridSize);
+    for (let gy = 0; gy < gridSize; gy++) {
+      for (let gx = 0; gx < gridSize; gx++) {
+        const startX = gx * cellW;
+        const startY = gy * cellH;
+        const endX = Math.min(startX + cellW, width);
+        const endY = Math.min(startY + cellH, height);
+        let blackCount = 0;
+        let total = 0;
+        for (let y = startY; y < endY; y++) {
+          for (let x = startX; x < endX; x++) {
+            total++;
+            if (gray[y * width + x] <= threshold) blackCount++;
+          }
+        }
+        density[gy * gridSize + gx] = total > 0 ? blackCount / total : 0;
+      }
+    }
+
+    // Find content bounds by checking which grid rows/cols have ink
+    let topRow = 0, bottomRow = gridSize - 1;
+    let leftCol = 0, rightCol = gridSize - 1;
+
+    // Trim top rows
+    for (let gy = 0; gy < gridSize; gy++) {
+      let hasContent = false;
+      for (let gx = 0; gx < gridSize; gx++) {
+        if (density[gy * gridSize + gx] >= minDensity) { hasContent = true; break; }
+      }
+      if (hasContent) { topRow = gy; break; }
+    }
+    // Trim bottom rows
+    for (let gy = gridSize - 1; gy >= 0; gy--) {
+      let hasContent = false;
+      for (let gx = 0; gx < gridSize; gx++) {
+        if (density[gy * gridSize + gx] >= minDensity) { hasContent = true; break; }
+      }
+      if (hasContent) { bottomRow = gy; break; }
+    }
+    // Trim left cols
+    for (let gx = 0; gx < gridSize; gx++) {
+      let hasContent = false;
+      for (let gy = topRow; gy <= bottomRow; gy++) {
+        if (density[gy * gridSize + gx] >= minDensity) { hasContent = true; break; }
+      }
+      if (hasContent) { leftCol = gx; break; }
+    }
+    // Trim right cols
+    for (let gx = gridSize - 1; gx >= 0; gx--) {
+      let hasContent = false;
+      for (let gy = topRow; gy <= bottomRow; gy++) {
+        if (density[gy * gridSize + gx] >= minDensity) { hasContent = true; break; }
+      }
+      if (hasContent) { rightCol = gx; break; }
+    }
+
+    // If no significant trimming, return original
+    if (topRow === 0 && bottomRow === gridSize - 1
+        && leftCol === 0 && rightCol === gridSize - 1) {
+      return { gray, width, height, offsetX: 0, offsetY: 0 };
+    }
+
+    // Extract cropped region
+    const cropX = leftCol * cellW;
+    const cropY = topRow * cellH;
+    const cropW = Math.min((rightCol + 1) * cellW, width) - cropX;
+    const cropH = Math.min((bottomRow + 1) * cellH, height) - cropY;
+
+    const cropped = new Uint8Array(cropW * cropH);
+    for (let y = 0; y < cropH; y++) {
+      for (let x = 0; x < cropW; x++) {
+        cropped[y * cropW + x] = gray[(cropY + y) * width + (cropX + x)];
+      }
+    }
+
+    return { gray: cropped, width: cropW, height: cropH, offsetX: cropX, offsetY: cropY };
+  }
+
   /** @param {Uint8Array} img @param {number} w @param {number} h @param {number} r */
   _erode(img, w, h, r) {
     const out = new Uint8Array(img.length).fill(0);

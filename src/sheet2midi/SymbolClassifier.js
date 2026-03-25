@@ -109,6 +109,31 @@ const RULES = [
     test: (c) => c.heightSS >= 2.0 && c.heightSS <= 4.5
       && c.widthSS >= 1.0 && c.widthSS <= 3.0
       && c.aspectRatio >= 0.5 && c.aspectRatio <= 1.2
+  },
+  // ── Accidentals ──────────────────────────────
+  // Sharp: tall vertical strokes with horizontal cross-bars, narrow-ish
+  {
+    type: SymbolType.SHARP,
+    test: (c) => c.heightSS >= 1.2 && c.heightSS <= 3.0
+      && c.widthSS >= 0.4 && c.widthSS <= 1.5
+      && c.aspectRatio >= 0.2 && c.aspectRatio <= 0.8
+      && c.fillRatio >= 0.2 && c.fillRatio <= 0.6
+  },
+  // Flat: tall stem with a round belly at the bottom, narrow
+  {
+    type: SymbolType.FLAT,
+    test: (c) => c.heightSS >= 1.5 && c.heightSS <= 3.5
+      && c.widthSS >= 0.3 && c.widthSS <= 1.2
+      && c.aspectRatio >= 0.15 && c.aspectRatio <= 0.6
+      && c.fillRatio >= 0.25 && c.fillRatio <= 0.6
+  },
+  // Natural: similar to sharp but typically narrower with offset cross-bars
+  {
+    type: SymbolType.NATURAL,
+    test: (c) => c.heightSS >= 1.2 && c.heightSS <= 3.0
+      && c.widthSS >= 0.3 && c.widthSS <= 1.0
+      && c.aspectRatio >= 0.15 && c.aspectRatio <= 0.5
+      && c.fillRatio >= 0.15 && c.fillRatio <= 0.5
   }
 ];
 
@@ -350,4 +375,7 @@ const EXPECTED_CENTERS = {
   [SymbolType.BAR_LINE]: { aspectRatio: 0.08, fillRatio: 0.9 },
   [SymbolType.DOT]: { aspectRatio: 1.0, fillRatio: 0.85 },
   [SymbolType.REST_QUARTER]: { aspectRatio: 0.5, fillRatio: 0.5 },
+  [SymbolType.SHARP]: { aspectRatio: 0.45, fillRatio: 0.4 },
+  [SymbolType.FLAT]: { aspectRatio: 0.35, fillRatio: 0.4 },
+  [SymbolType.NATURAL]: { aspectRatio: 0.3, fillRatio: 0.35 },
 };

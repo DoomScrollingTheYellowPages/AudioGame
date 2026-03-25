@@ -12,6 +12,18 @@ import { SymbolType } from './SymbolClassifier.js';
 const DIATONIC_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
 const DIATONIC_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
+// ── Key Signature Lookup ──────────────────────
+// Maps number of sharps/flats to the affected pitch classes.
+// Order follows the circle of fifths.
+const SHARP_ORDER = ['F', 'C', 'G', 'D', 'A', 'E', 'B'];
+const FLAT_ORDER = ['B', 'E', 'A', 'D', 'G', 'C', 'F'];
+
+// Max horizontal distance (in staffSpaces) from clef to consider
+// a symbol as part of the key signature
+const KEY_SIG_REGION = 6.0;
+// Max distance (in staffSpaces) for an inline accidental to its note
+const ACCIDENTAL_ATTACH_DISTANCE = 1.5;
+
 // Treble clef: bottom line = E4 (MIDI 64), diatonic index in octave 4 = 2 (E)
 // Bass clef: bottom line = G2 (MIDI 43), diatonic index in octave 2 = 4 (G)
 // We use absolute diatonic position: C0=0, D0=1, ..., B0=6, C1=7, ...
@@ -196,6 +208,160 @@ export class PitchMapper {
   }
 
   /**
+   * Detect key signature for a staff by counting accidentals before the first note.
+   * Returns a Set of affected pitch class names (e.g., {'F', 'C'} for D major).
+   * @param {Array<{component: ComponentFeatures, type: string}>} symbols
+   * @param {number[]} staffGroup - 5 staff line y-positions
+   * @param {number} staffSpace
+   * @returns {{sharps: Set<string>, flats: Set<string>}}
+   */
+  detectKeySignature(symbols, staffGroup, staffSpace) {
+    const topLine = staffGroup[0];
+    const bottomLine = staffGroup[4];
+    const margin = staffSpace * 2;
+
+    // Find the leftmost clef's right edge to define the key sig search region
+    let clefRightX = 0;
+    for (const s of symbols) {
+      if (s.type === SymbolType.CLEF_TREBLE || s.type === SymbolType.CLEF_BASS) {
+        const cy = s.component.centroid.y;
+        if (cy >= topLine - margin && cy <= bottomLine + margin) {
+          const rightEdge = s.component.bbox.x + s.component.bbox.width;
+          if (rightEdge > clefRightX) clefRightX = rightEdge;
+        }
+      }
+    }
+
+    // Find first note x-position on this staff
+    const noteTypes = new Set([
+      SymbolType.FILLED_NOTEHEAD, SymbolType.OPEN_NOTEHEAD, SymbolType.WHOLE_NOTE
+    ]);
+    let firstNoteX = Infinity;
+    for (const s of symbols) {
+      if (!noteTypes.has(s.type)) continue;
+      const cy = s.component.centroid.y;
+      if (cy >= topLine - margin && cy <= bottomLine + margin) {
+        if (s.component.centroid.x < firstNoteX) {
+          firstNoteX = s.component.centroid.x;
+        }
+      }
+    }
+
+    // Count sharps and flats between the clef and first note
+    const keySigEndX = Math.min(
+      clefRightX + staffSpace * KEY_SIG_REGION,
+      firstNoteX
+    );
+
+    let sharpCount = 0;
+    let flatCount = 0;
+
+    for (const s of symbols) {
+      if (s.type !== SymbolType.SHARP && s.type !== SymbolType.FLAT) continue;
+      const cx = s.component.centroid.x;
+      const cy = s.component.centroid.y;
+      if (cy < topLine - margin || cy > bottomLine + margin) continue;
+      if (cx >= clefRightX && cx <= keySigEndX) {
+        if (s.type === SymbolType.SHARP) sharpCount++;
+        else flatCount++;
+      }
+    }
+
+    // Build affected pitch class sets from circle-of-fifths order
+    const sharps = new Set();
+    const flats = new Set();
+    for (let i = 0; i < Math.min(sharpCount, 7); i++) sharps.add(SHARP_ORDER[i]);
+    for (let i = 0; i < Math.min(flatCount, 7); i++) flats.add(FLAT_ORDER[i]);
+
+    if (sharps.size > 0 || flats.size > 0) {
+      console.log(`[OMR] Key signature: ${sharpCount} sharps ${[...sharps].join(',')} | ${flatCount} flats ${[...flats].join(',')}`);
+    }
+
+    return { sharps, flats };
+  }
+
+  /**
+   * Find inline accidentals and pair them with the nearest subsequent note.
+   * Returns a map from note symbol → accidental modifier (+1 sharp, -1 flat, 0 natural).
+   * @param {Array<{component: ComponentFeatures, type: string}>} symbols
+   * @param {Array<{symbol: object, midiNote: number}>} notes
+   * @param {number} staffSpace
+   * @returns {Map<object, number>} symbol → semitone offset
+   */
+  pairInlineAccidentals(symbols, notes, staffSpace) {
+    const accidentalMap = new Map();
+    const maxDist = staffSpace * ACCIDENTAL_ATTACH_DISTANCE;
+
+    // Collect accidental symbols sorted left to right
+    const accidentals = symbols.filter(s =>
+      s.type === SymbolType.SHARP ||
+      s.type === SymbolType.FLAT ||
+      s.type === SymbolType.NATURAL
+    ).sort((a, b) => a.component.centroid.x - b.component.centroid.x);
+
+    for (const acc of accidentals) {
+      const ax = acc.component.centroid.x;
+      const ay = acc.component.centroid.y;
+
+      // Find nearest note to the right and within vertical range
+      let bestNote = null;
+      let bestDist = Infinity;
+
+      for (const n of notes) {
+        const nx = n.symbol.component.centroid.x;
+        const ny = n.symbol.component.centroid.y;
+        // Accidental must be to the left of the note
+        if (nx <= ax) continue;
+        const dx = nx - ax;
+        const dy = Math.abs(ny - ay);
+        if (dx > maxDist * 2 || dy > maxDist) continue;
+        if (dx < bestDist) {
+          bestDist = dx;
+          bestNote = n;
+        }
+      }
+
+      if (bestNote) {
+        let offset = 0;
+        if (acc.type === SymbolType.SHARP) offset = 1;
+        else if (acc.type === SymbolType.FLAT) offset = -1;
+        // NATURAL offset = 0 (cancels key sig)
+        accidentalMap.set(bestNote.symbol, offset);
+      }
+    }
+
+    return accidentalMap;
+  }
+
+  /**
+   * Apply key signature and inline accidentals to modify MIDI note values.
+   * @param {Array<{symbol: object, noteName: string, midiNote: number}>} notes
+   * @param {{sharps: Set<string>, flats: Set<string>}} keySig
+   * @param {Map<object, number>} inlineAccidentals
+   * @returns {Array} notes with adjusted midiNote values
+   */
+  applyAccidentals(notes, keySig, inlineAccidentals) {
+    for (const n of notes) {
+      const inlineOffset = inlineAccidentals.get(n.symbol);
+
+      if (inlineOffset !== undefined) {
+        // Inline accidental overrides key signature
+        n.midiNote += inlineOffset;
+        if (inlineOffset === 1) n.noteName += '#';
+        else if (inlineOffset === -1) n.noteName += 'b';
+        // natural (0) cancels key sig — no semitone change
+      } else if (keySig.sharps.has(n.noteName)) {
+        n.midiNote += 1;
+        n.noteName += '#';
+      } else if (keySig.flats.has(n.noteName)) {
+        n.midiNote -= 1;
+        n.noteName += 'b';
+      }
+    }
+    return notes;
+  }
+
+  /**
    * Assign pitch to all detected noteheads.
    * @param {Array<{component: ComponentFeatures, type: string}>} symbols
    * @param {number[][]} staffGroups - arrays of 5 staff line y-positions
@@ -240,6 +406,24 @@ export class PitchMapper {
 
     // Sort by x-position (left to right)
     notes.sort((a, b) => a.symbol.component.centroid.x - b.symbol.component.centroid.x);
+
+    // Detect key signature per staff group and apply accidentals
+    const mergedKeySig = { sharps: new Set(), flats: new Set() };
+    for (const group of staffGroups) {
+      const ks = this.detectKeySignature(symbols, group, staffSpace);
+      for (const s of ks.sharps) mergedKeySig.sharps.add(s);
+      for (const f of ks.flats) mergedKeySig.flats.add(f);
+    }
+
+    // Pair inline accidentals with their notes
+    const inlineAccidentals = this.pairInlineAccidentals(symbols, notes, staffSpace);
+
+    // Apply all accidentals (key sig + inline overrides)
+    this.applyAccidentals(notes, mergedKeySig, inlineAccidentals);
+
+    if (inlineAccidentals.size > 0 || mergedKeySig.sharps.size > 0 || mergedKeySig.flats.size > 0) {
+      console.log(`[OMR] Applied ${inlineAccidentals.size} inline accidentals, key sig: ${mergedKeySig.sharps.size} sharps, ${mergedKeySig.flats.size} flats`);
+    }
 
     this._bus.emit('omr:notes', { notes });
     return notes;

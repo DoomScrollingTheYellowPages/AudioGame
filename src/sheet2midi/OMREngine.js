@@ -45,7 +45,17 @@ export class OMREngine {
 
     // Stage 1: Load image
     this._bus.emit('omr:progress', { stage: 1, name: 'Loading image' });
-    const { gray, width, height } = await this._imageProcessor.load(file);
+    let { gray, width, height } = await this._imageProcessor.load(file);
+
+    // Stage 1.5: Preprocessing — median filter + border cropping
+    gray = this._imageProcessor.medianFilter(gray, width, height);
+    const cropped = this._imageProcessor.cropBorders(gray, width, height);
+    if (cropped.offsetX > 0 || cropped.offsetY > 0) {
+      console.log(`[OMR] Cropped borders: offset=(${cropped.offsetX},${cropped.offsetY}) size=${cropped.width}×${cropped.height} (was ${width}×${height})`);
+      gray = cropped.gray;
+      width = cropped.width;
+      height = cropped.height;
+    }
 
     // Stage 2: Binarization
     this._bus.emit('omr:progress', { stage: 2, name: 'Binarizing' });
