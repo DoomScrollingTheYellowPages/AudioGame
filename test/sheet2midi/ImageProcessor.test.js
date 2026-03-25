@@ -127,6 +127,93 @@ describe('ImageProcessor', () => {
     });
   });
 
+  // ── binarizeOtsu ────────────────────────────
+  describe('binarizeOtsu', () => {
+    it('converts gray image to binary with only 0 and 255', () => {
+      const bus = new MockBus();
+      const ip = new ImageProcessor(bus);
+      const gray = new Uint8Array(200);
+      for (let i = 0; i < 200; i++) gray[i] = i % 256;
+      const bin = ip.binarizeOtsu(gray);
+      assert.equal(bin.length, 200);
+      for (const v of bin) assert.ok(v === 0 || v === 255);
+    });
+  });
+
+  // ── Auto binarize (selects Otsu vs Sauvola) ─
+  describe('binarize (auto-select)', () => {
+    it('uses Otsu for uniform illumination', () => {
+      const bus = new MockBus();
+      const ip = new ImageProcessor(bus);
+      const w = 20, h = 20;
+      // Uniform image — all quadrant means are ~128
+      const gray = createGrayImage(w, h, 128);
+      const bin = ip.binarize(gray, w, h);
+      assert.equal(bin.length, w * h);
+      for (const v of bin) assert.ok(v === 0 || v === 255);
+    });
+
+    it('uses Sauvola for uneven illumination', () => {
+      const bus = new MockBus();
+      const ip = new ImageProcessor(bus);
+      const w = 40, h = 40;
+      const gray = createGrayImage(w, h, 50);
+      // Make top-right quadrant much brighter (>30 diff from others)
+      for (let y = 0; y < 20; y++) {
+        for (let x = 20; x < 40; x++) {
+          gray[y * w + x] = 200;
+        }
+      }
+      const bin = ip.binarize(gray, w, h);
+      assert.equal(bin.length, w * h);
+      for (const v of bin) assert.ok(v === 0 || v === 255);
+    });
+  });
+
+  // ── Morphological Close ────────────────────
+  describe('morphClose', () => {
+    it('fills small gaps in binary image', () => {
+      const bus = new MockBus();
+      const ip = new ImageProcessor(bus);
+      const w = 10, h = 10;
+      // Create binary image with a black region and a 1-pixel white gap
+      const bin = new Uint8Array(w * h).fill(255);
+      for (let x = 0; x < w; x++) {
+        bin[3 * w + x] = 0; // row 3 black
+        // row 4 white (gap)
+        bin[5 * w + x] = 0; // row 5 black
+      }
+      const closed = ip.morphClose(bin, w, h, 1);
+      // The gap at row 4 should be filled (dilate then erode)
+      assert.equal(closed[4 * w + 5], 0, 'gap should be filled');
+    });
+
+    it('preserves image dimensions', () => {
+      const bus = new MockBus();
+      const ip = new ImageProcessor(bus);
+      const w = 15, h = 15;
+      const bin = new Uint8Array(w * h).fill(255);
+      const closed = ip.morphClose(bin, w, h, 1);
+      assert.equal(closed.length, w * h);
+    });
+  });
+
+  // ── Integral Images ────────────────────────
+  describe('buildIntegralImages', () => {
+    it('builds correct integral image for small input', () => {
+      const bus = new MockBus();
+      const ip = new ImageProcessor(bus);
+      // 3x3 image all value 1 — no padding, same dimensions
+      const gray = new Uint8Array([1, 1, 1, 1, 1, 1, 1, 1, 1]);
+      const { integral, integralSq } = ip.buildIntegralImages(gray, 3, 3);
+      // Bottom-right corner (index 8) should be sum of all 9 pixels = 9
+      assert.equal(integral[8], 9);
+      assert.equal(integralSq[8], 9); // 1^2 * 9
+      // Top-left corner (index 0) should be first pixel = 1
+      assert.equal(integral[0], 1);
+    });
+  });
+
   // ── Sauvola Binarization ───────────────────
   describe('binarizeSauvola', () => {
     it('produces only 0 and 255 values', () => {
