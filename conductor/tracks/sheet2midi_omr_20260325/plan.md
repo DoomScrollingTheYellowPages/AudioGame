@@ -50,7 +50,7 @@
 
 ## Phase 4: Rest Integration & Timing
 
-- [ ] Task: Integrate rests into the note sequence in OMREngine
+- [~] Task: Integrate rests into the note sequence in OMREngine
   - [ ] Sub-task: Write tests — test that rests appear in the output note array at correct time positions with correct durations and zero velocity
   - [ ] Sub-task: Implement — ensure DurationMapper's rest output is merged into the note sequence, with proper start-time offsets based on preceding notes/rests
 - [ ] Task: Update MidiWriter to handle rest gaps

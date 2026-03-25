@@ -139,19 +139,33 @@ export class OMREngine {
 
     // Stage 10: Grammar validation
     this._bus.emit('omr:progress', { stage: 10, name: 'Validating grammar' });
-    const { notes: validatedNotes, corrections } =
+    const { notes: validatedNotes, rests: validatedRests, corrections } =
       this._grammarValidator.validate(
         notesWithDuration, rests, symbols, staffSpace, timeSig
       );
 
-    console.log(`[OMR] Stage 10: ${validatedNotes.length} validated notes, ${corrections.length} corrections`);
+    console.log(`[OMR] Stage 10: ${validatedNotes.length} validated notes, ${validatedRests.length} rests, ${corrections.length} corrections`);
 
-    // Stage 11: MIDI assembly
+    // Stage 11: MIDI assembly — merge notes and rests, compute start times
     this._bus.emit('omr:progress', { stage: 11, name: 'Generating MIDI' });
-    const midiNotes = validatedNotes
-      .filter(n => n.midiNote > 0)
-      .map(n => ({ note: n.midiNote, beats: n.beats }));
-    console.log(`[OMR] Stage 11: ${midiNotes.length} MIDI notes (after filter midiNote>0)`);
+
+    // Merge into time-ordered sequence and compute cumulative startBeat
+    const allEvents = [
+      ...validatedNotes.map(n => ({ ...n, isRest: false })),
+      ...validatedRests.map(r => ({ ...r, isRest: true, midiNote: -1 }))
+    ];
+    allEvents.sort((a, b) => a.x - b.x);
+
+    let currentBeat = 0;
+    for (const e of allEvents) {
+      e.startBeat = currentBeat;
+      currentBeat += e.beats;
+    }
+
+    const midiNotes = allEvents
+      .filter(n => !n.isRest && n.midiNote > 0)
+      .map(n => ({ note: n.midiNote, beats: n.beats, startBeat: n.startBeat }));
+    console.log(`[OMR] Stage 11: ${midiNotes.length} MIDI notes, ${validatedRests.length} rests integrated`);
 
     const midi = MidiWriter.build({
       bpm,
