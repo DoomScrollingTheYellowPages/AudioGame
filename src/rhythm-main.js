@@ -29,10 +29,10 @@ const fingeringHighway = new FingeringHighway(canvas, bus);
 const judge        = new HitJudge(bus, engine);
 
 // ── View mode ──
-let viewMode = 'piano';  // 'piano' | 'staff' | 'fingering'
+let viewMode = 'piano';
 function activeHighway() {
-  if (viewMode === 'staff')     return staffHighway;
-  if (viewMode === 'fingering') return fingeringHighway;
+  if (viewMode === 'staff') return staffHighway;
+  if (viewMode.startsWith('fingering-')) return fingeringHighway;
   return highway;
 }
 
