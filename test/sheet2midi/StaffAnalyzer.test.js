@@ -145,6 +145,44 @@ describe('StaffAnalyzer', () => {
     });
   });
 
+  // ── Ledger line preservation ────────────────
+  describe('ledger line handling', () => {
+    it('does not detect short ledger lines as staff rows', () => {
+      const bus = new MockBus();
+      const sa = new StaffAnalyzer(bus);
+      const w = 200, h = 120;
+      const bin = new Uint8Array(w * h).fill(255);
+      // Draw 5 full-width staff lines
+      drawHorizontalLines(bin, w, h, [30, 40, 50, 60, 70], 2);
+      // Draw a short ledger line below the staff (only 20px wide, not full width)
+      for (let x = 90; x < 110; x++) bin[80 * w + x] = 0;
+      const profile = sa.horizontalProjection(bin, w, h);
+      const rows = sa.detectStaffRows(profile, w);
+      // Ledger line at row 80 should NOT be detected (too short, < 30% of width)
+      assert.ok(!rows.includes(80), 'ledger line should not be detected as staff row');
+      assert.equal(rows.length, 5, 'should still detect exactly 5 staff lines');
+    });
+
+    it('preserves ledger lines during staff line removal', () => {
+      const bus = new MockBus();
+      const sa = new StaffAnalyzer(bus);
+      const w = 200, h = 120;
+      const bin = new Uint8Array(w * h).fill(255);
+      // Draw 5 staff lines
+      drawHorizontalLines(bin, w, h, [30, 40, 50, 60, 70], 2);
+      // Draw a ledger line at y=80 (below staff, only ~20px wide)
+      for (let x = 90; x < 110; x++) bin[80 * w + x] = 0;
+      // Remove staff lines at detected rows
+      const out = sa.removeStaffLines(bin, w, h, [30, 40, 50, 60, 70], 2);
+      // Ledger line at y=80 should still be present
+      let ledgerBlack = 0;
+      for (let x = 90; x < 110; x++) {
+        if (out[80 * w + x] === 0) ledgerBlack++;
+      }
+      assert.ok(ledgerBlack >= 15, `ledger line should be preserved, got ${ledgerBlack} black pixels`);
+    });
+  });
+
   // ── removeStaffLines ───────────────────────
   describe('removeStaffLines', () => {
     it('removes staff lines from binary image', () => {
