@@ -58,7 +58,7 @@
   - [x] Sub-task: Implement — adjust MIDI assembly to insert appropriate delta-time gaps for rests
 - [x] Task: Conductor - User Manual Verification 'Rest Integration & Timing' (Protocol in workflow.md) 8e7095f
 
-## Phase 5: Grammar Validator Auto-Correction
+## Phase 5: Grammar Validator Auto-Correction [checkpoint: a0fba15]
 
 - [x] Task: Connect auto-correction to the OMR pipeline a227b3f
   - [x] Sub-task: Write tests — test that a measure with a small beat deficit (e.g., missing dot) is auto-corrected by adjusting the lowest-confidence note's duration
@@ -66,7 +66,7 @@
 - [x] Task: Report corrections to the UI a227b3f
   - [x] Sub-task: Write tests — test that correction events are emitted via the EventBus with details (measure number, original vs. corrected duration, confidence)
   - [x] Sub-task: Implement — emit `omr:correction` events and display them in the corrections log on the sheet2midi UI
-- [~] Task: Conductor - User Manual Verification 'Grammar Validator Auto-Correction' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Grammar Validator Auto-Correction' (Protocol in workflow.md) a0fba15
 
 ## Phase 6: End-to-End Integration Testing
 
