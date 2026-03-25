@@ -60,13 +60,13 @@
 
 ## Phase 5: Grammar Validator Auto-Correction
 
-- [~] Task: Connect auto-correction to the OMR pipeline
-  - [ ] Sub-task: Write tests — test that a measure with a small beat deficit (e.g., missing dot) is auto-corrected by adjusting the lowest-confidence note's duration
-  - [ ] Sub-task: Implement — integrate the existing auto-correct skeleton in GrammarValidator so corrections are applied to the note array before MIDI assembly
-- [ ] Task: Report corrections to the UI
-  - [ ] Sub-task: Write tests — test that correction events are emitted via the EventBus with details (measure number, original vs. corrected duration, confidence)
-  - [ ] Sub-task: Implement — emit `omr:correction` events and display them in the corrections log on the sheet2midi UI
-- [ ] Task: Conductor - User Manual Verification 'Grammar Validator Auto-Correction' (Protocol in workflow.md)
+- [x] Task: Connect auto-correction to the OMR pipeline a227b3f
+  - [x] Sub-task: Write tests — test that a measure with a small beat deficit (e.g., missing dot) is auto-corrected by adjusting the lowest-confidence note's duration
+  - [x] Sub-task: Implement — integrate the existing auto-correct skeleton in GrammarValidator so corrections are applied to the note array before MIDI assembly
+- [x] Task: Report corrections to the UI a227b3f
+  - [x] Sub-task: Write tests — test that correction events are emitted via the EventBus with details (measure number, original vs. corrected duration, confidence)
+  - [x] Sub-task: Implement — emit `omr:correction` events and display them in the corrections log on the sheet2midi UI
+- [~] Task: Conductor - User Manual Verification 'Grammar Validator Auto-Correction' (Protocol in workflow.md)
 
 ## Phase 6: End-to-End Integration Testing
 
