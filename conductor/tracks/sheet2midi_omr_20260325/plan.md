@@ -28,7 +28,7 @@
   - [x] Sub-task: Implement — fix any bugs discovered during test writing
 - [x] Task: Conductor - User Manual Verification 'Testing Infrastructure & Baseline Coverage' (Protocol in workflow.md) cdf2baa
 
-## Phase 2: Ledger Line Support
+## Phase 2: Ledger Line Support [checkpoint: 18bd063]
 
 - [x] Task: Activate ledger line detection in PitchMapper 99e8cd5
   - [x] Sub-task: Write tests — test pitch assignment for notes on ledger lines above treble staff (A5, B5, C6) and below bass staff (C2, B1, A1), and middle C on both staves
@@ -36,7 +36,7 @@
 - [x] Task: Handle ledger line rendering artifacts in StaffAnalyzer a1acaad
   - [x] Sub-task: Write tests — test that short horizontal segments near noteheads outside staff bounds are detected as ledger lines, not noise
   - [x] Sub-task: Implement — add ledger line detection to StaffAnalyzer so they are preserved during staff line removal and available for pitch mapping
-- [~] Task: Conductor - User Manual Verification 'Ledger Line Support' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Ledger Line Support' (Protocol in workflow.md) 18bd063
 
 ## Phase 3: Touching Notehead Separation
 
