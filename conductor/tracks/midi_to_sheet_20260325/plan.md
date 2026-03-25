@@ -2,7 +2,7 @@
 
 ## Phase 1: Notation Model
 
-- [ ] Task: Create MidiToNotation module for MIDI-to-notation conversion
+- [~] Task: Create MidiToNotation module for MIDI-to-notation conversion
   - [ ] Sub-task: Write tests — test tick quantization, note-to-staff-position mapping, rest insertion, measure segmentation, beam grouping
   - [ ] Sub-task: Implement — src/notation/MidiToNotation.js: quantize ticks to beat grid, assign staff positions, detect rests, segment into measures, group beams
 - [ ] Task: Conductor - User Manual Verification 'Notation Model' (Protocol in workflow.md)
