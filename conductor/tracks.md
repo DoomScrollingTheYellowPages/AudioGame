@@ -14,5 +14,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: Multi-Instrument Fingering Charts
+## [x] Track: Multi-Instrument Fingering Charts
 *Link: [./conductor/tracks/fingering_charts_20260325/](./conductor/tracks/fingering_charts_20260325/)*
