@@ -13,6 +13,9 @@ import { MidiParser }        from './rhythm/MidiParser.js';
 import { StaffHighway }      from './rhythm/StaffHighway.js';
 import { FingeringHighway }  from './rhythm/FingeringHighway.js';
 import { Synth }             from './audio/Synth.js';
+import { MidiToNotation }    from './notation/MidiToNotation.js';
+import { SheetRenderer }     from './notation/SheetRenderer.js';
+import { SvgExporter }       from './notation/SvgExporter.js';
 
 // ── Bootstrap ──
 const bus          = new EventBus();
@@ -251,12 +254,76 @@ midiUpload.addEventListener('change', async () => {
     }
 
     applyMidiTrack(parsed, -1);
+
+    // Show sheet music buttons
+    const viewSheetBtn = document.getElementById('view-sheet-btn');
+    const exportSvgBtn = document.getElementById('export-svg-btn');
+    if (viewSheetBtn) viewSheetBtn.style.display = '';
+    if (exportSvgBtn) exportSvgBtn.style.display = '';
   } catch (err) {
     console.error('MIDI parse error:', err);
     midiUploadName.textContent = 'parse error';
     customSong = null;
   }
 });
+
+// ── Sheet music view ──
+const viewSheetBtn = document.getElementById('view-sheet-btn');
+const exportSvgBtn = document.getElementById('export-svg-btn');
+const sheetOverlay = document.getElementById('sheet-overlay');
+const sheetCanvas = document.getElementById('sheet-canvas');
+const closeSheet = document.getElementById('close-sheet');
+
+let _lastSheetCmds = null;
+
+if (viewSheetBtn) {
+  viewSheetBtn.addEventListener('click', () => {
+    if (!_lastParsed) return;
+    const model = MidiToNotation.convert(_lastParsed.notes, {
+      bpm: _lastParsed.bpm,
+      meter: _lastParsed.meter
+    });
+    _lastSheetCmds = SheetRenderer.buildDrawCommands(model);
+    // Size canvas
+    let maxX = 0, maxY = 0;
+    for (const c of _lastSheetCmds) {
+      if (c.x2 !== undefined) maxX = Math.max(maxX, c.x2);
+      if (c.x !== undefined) maxX = Math.max(maxX, c.x + 20);
+      if (c.y !== undefined) maxY = Math.max(maxY, c.y);
+      if (c.y2 !== undefined) maxY = Math.max(maxY, c.y2);
+    }
+    sheetCanvas.width = Math.max(maxX + 40, 400);
+    sheetCanvas.height = Math.max(maxY + 40, 120);
+    const ctx = sheetCanvas.getContext('2d');
+    SheetRenderer.renderToCanvas(ctx, _lastSheetCmds, { printMode: true });
+    sheetOverlay.style.display = '';
+  });
+}
+
+if (closeSheet) {
+  closeSheet.addEventListener('click', () => {
+    sheetOverlay.style.display = 'none';
+  });
+}
+
+if (exportSvgBtn) {
+  exportSvgBtn.addEventListener('click', () => {
+    if (!_lastParsed) return;
+    const model = MidiToNotation.convert(_lastParsed.notes, {
+      bpm: _lastParsed.bpm,
+      meter: _lastParsed.meter
+    });
+    const cmds = SheetRenderer.buildDrawCommands(model);
+    const svg = SvgExporter.toSvg(cmds);
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sheet-music.svg';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
 
 // ── Track selector change ──
 midiTrackSelect.addEventListener('change', () => {
