@@ -38,7 +38,7 @@
   - [x] Sub-task: Implement — add ledger line detection to StaffAnalyzer so they are preserved during staff line removal and available for pitch mapping
 - [x] Task: Conductor - User Manual Verification 'Ledger Line Support' (Protocol in workflow.md) 18bd063
 
-## Phase 3: Touching Notehead Separation
+## Phase 3: Touching Notehead Separation [checkpoint: a93a253]
 
 - [x] Task: Integrate distance transform for touching noteheads in SymbolClassifier 833d66e
   - [x] Sub-task: Write tests — test that two adjacent filled noteheads in a single component are separated into two individual noteheads with correct centroids
@@ -46,7 +46,7 @@
 - [x] Task: Update ComponentLabeler to handle split components 3ec7ebc
   - [x] Sub-task: Write tests — test that split components receive correct feature recalculation (bbox, centroid, area)
   - [x] Sub-task: Implement — ensure split noteheads are re-labeled and feature-extracted correctly before passing downstream
-- [~] Task: Conductor - User Manual Verification 'Touching Notehead Separation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Touching Notehead Separation' (Protocol in workflow.md) a93a253
 
 ## Phase 4: Rest Integration & Timing
 
