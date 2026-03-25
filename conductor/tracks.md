@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [ ] Track: Complete the Sheet2MIDI OMR Pipeline
+## [~] Track: Complete the Sheet2MIDI OMR Pipeline
 *Link: [./conductor/tracks/sheet2midi_omr_20260325/](./conductor/tracks/sheet2midi_omr_20260325/)*

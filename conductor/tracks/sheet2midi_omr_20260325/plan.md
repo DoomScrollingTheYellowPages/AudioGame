@@ -2,7 +2,7 @@
 
 ## Phase 1: Testing Infrastructure & Baseline Coverage
 
-- [ ] Task: Set up test framework and test runner for the project
+- [~] Task: Set up test framework and test runner for the project
   - [ ] Sub-task: Write tests — select a browser-compatible test runner (or lightweight Node-based harness) and configure it for the project's zero-dependency, ES module architecture
   - [ ] Sub-task: Implement — create the test runner configuration and a sample test to validate the setup works
 - [ ] Task: Write baseline unit tests for ImageProcessor
