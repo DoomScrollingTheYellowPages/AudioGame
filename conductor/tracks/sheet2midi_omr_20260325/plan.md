@@ -50,13 +50,13 @@
 
 ## Phase 4: Rest Integration & Timing
 
-- [~] Task: Integrate rests into the note sequence in OMREngine
-  - [ ] Sub-task: Write tests — test that rests appear in the output note array at correct time positions with correct durations and zero velocity
-  - [ ] Sub-task: Implement — ensure DurationMapper's rest output is merged into the note sequence, with proper start-time offsets based on preceding notes/rests
-- [ ] Task: Update MidiWriter to handle rest gaps
-  - [ ] Sub-task: Write tests — test that MIDI output contains silence (no noteOn) during rest periods, and subsequent notes start at the correct tick offset
-  - [ ] Sub-task: Implement — adjust MIDI assembly to insert appropriate delta-time gaps for rests
-- [ ] Task: Conductor - User Manual Verification 'Rest Integration & Timing' (Protocol in workflow.md)
+- [x] Task: Integrate rests into the note sequence in OMREngine 4fcfe82
+  - [x] Sub-task: Write tests — test that rests appear in the output note array at correct time positions with correct durations and zero velocity
+  - [x] Sub-task: Implement — ensure DurationMapper's rest output is merged into the note sequence, with proper start-time offsets based on preceding notes/rests
+- [x] Task: Update MidiWriter to handle rest gaps 4fcfe82
+  - [x] Sub-task: Write tests — test that MIDI output contains silence (no noteOn) during rest periods, and subsequent notes start at the correct tick offset
+  - [x] Sub-task: Implement — adjust MIDI assembly to insert appropriate delta-time gaps for rests
+- [~] Task: Conductor - User Manual Verification 'Rest Integration & Timing' (Protocol in workflow.md)
 
 ## Phase 5: Grammar Validator Auto-Correction
 
