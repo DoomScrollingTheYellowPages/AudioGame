@@ -70,7 +70,7 @@
 
 ## Phase 6: End-to-End Integration Testing
 
-- [ ] Task: Create synthetic test images for pipeline validation
+- [~] Task: Create synthetic test images for pipeline validation
   - [ ] Sub-task: Write tests — generate simple sheet music images programmatically (C scale, simple melody with accidentals, piece with rests) using Canvas API
   - [ ] Sub-task: Implement — build a test image generator that creates known-good sheet music images with predictable OMR output
 - [ ] Task: End-to-end pipeline test with synthetic images
