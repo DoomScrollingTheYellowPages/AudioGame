@@ -112,6 +112,35 @@ describe('ComponentLabeler', () => {
     });
   });
 
+  // ── splitComponent ──────────────────────────
+  describe('splitComponent', () => {
+    it('splits a component into sub-features given center points', () => {
+      const bus = new MockBus();
+      const cl = new ComponentLabeler(bus);
+      const w = 40, h = 20;
+      const bin = new Uint8Array(w * h).fill(255);
+      // Two 10x10 blobs connected by a thin bridge
+      drawRect(bin, w, 2, 5, 10, 10, 0);  // blob 1: x=2..11, y=5..14
+      drawRect(bin, w, 20, 5, 10, 10, 0); // blob 2: x=20..29, y=5..14
+      // Bridge
+      drawRect(bin, w, 12, 9, 8, 2, 0);   // x=12..19, y=9..10
+      const { labels, count } = cl.label(bin, w, h);
+      const features = cl.extractFeatures(labels, w, h, count, 10);
+      // Should be 1 merged component
+      assert.equal(features.length, 1);
+      // Split using two center points
+      const centers = [{ x: 7, y: 10 }, { x: 25, y: 10 }];
+      const splits = cl.splitComponent(features[0], centers, labels, w, 10);
+      assert.equal(splits.length, 2);
+      // Each split should have correct centroids near the given centers
+      const sorted = splits.sort((a, b) => a.centroid.x - b.centroid.x);
+      assert.ok(sorted[0].centroid.x < 15, `first split centroid.x=${sorted[0].centroid.x}`);
+      assert.ok(sorted[1].centroid.x > 15, `second split centroid.x=${sorted[1].centroid.x}`);
+      assert.ok(sorted[0].area > 0);
+      assert.ok(sorted[1].area > 0);
+    });
+  });
+
   // ── hole counting ──────────────────────────
   describe('hole counting', () => {
     it('detects a hole in a ring shape', () => {

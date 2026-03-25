@@ -40,10 +40,10 @@
 
 ## Phase 3: Touching Notehead Separation
 
-- [~] Task: Integrate distance transform for touching noteheads in SymbolClassifier
-  - [ ] Sub-task: Write tests — test that two adjacent filled noteheads in a single component are separated into two individual noteheads with correct centroids
-  - [ ] Sub-task: Implement — connect the existing distance transform and local maxima code into the classification pipeline, splitting large notehead-like components when multiple peaks are detected
-- [ ] Task: Update ComponentLabeler to handle split components
+- [x] Task: Integrate distance transform for touching noteheads in SymbolClassifier 833d66e
+  - [x] Sub-task: Write tests — test that two adjacent filled noteheads in a single component are separated into two individual noteheads with correct centroids
+  - [x] Sub-task: Implement — connect the existing distance transform and local maxima code into the classification pipeline, splitting large notehead-like components when multiple peaks are detected
+- [~] Task: Update ComponentLabeler to handle split components
   - [ ] Sub-task: Write tests — test that split components receive correct feature recalculation (bbox, centroid, area)
   - [ ] Sub-task: Implement — ensure split noteheads are re-labeled and feature-extracted correctly before passing downstream
 - [ ] Task: Conductor - User Manual Verification 'Touching Notehead Separation' (Protocol in workflow.md)

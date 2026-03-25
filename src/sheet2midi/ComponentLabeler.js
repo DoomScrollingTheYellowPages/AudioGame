@@ -183,6 +183,85 @@ export class ComponentLabeler {
   }
 
   /**
+   * Split a component into sub-components based on center points.
+   * Assigns each pixel of the original component to the nearest center
+   * using Voronoi partitioning, then computes features for each partition.
+   * @param {ComponentFeatures} component
+   * @param {Array<{x: number, y: number}>} centers
+   * @param {Int32Array} labels
+   * @param {number} imgWidth
+   * @param {number} staffSpace
+   * @returns {ComponentFeatures[]}
+   */
+  splitComponent(component, centers, labels, imgWidth, staffSpace) {
+    if (centers.length < 2) return [component];
+
+    const bbox = component.bbox;
+    const label = component.label;
+
+    // Assign each pixel to the nearest center (Voronoi)
+    const assignment = new Int32Array(bbox.width * bbox.height).fill(-1);
+    const partArea = new Uint32Array(centers.length);
+    const partSumX = new Float64Array(centers.length);
+    const partSumY = new Float64Array(centers.length);
+    const partMinX = new Int32Array(centers.length).fill(imgWidth);
+    const partMinY = new Int32Array(centers.length).fill(Infinity);
+    const partMaxX = new Int32Array(centers.length).fill(-1);
+    const partMaxY = new Int32Array(centers.length).fill(-1);
+
+    for (let dy = 0; dy < bbox.height; dy++) {
+      for (let dx = 0; dx < bbox.width; dx++) {
+        const imgIdx = (bbox.y + dy) * imgWidth + (bbox.x + dx);
+        if (labels[imgIdx] !== label) continue;
+
+        const px = bbox.x + dx;
+        const py = bbox.y + dy;
+
+        // Find nearest center
+        let bestIdx = 0;
+        let bestDist = Infinity;
+        for (let c = 0; c < centers.length; c++) {
+          const d = Math.abs(px - centers[c].x) + Math.abs(py - centers[c].y);
+          if (d < bestDist) {
+            bestDist = d;
+            bestIdx = c;
+          }
+        }
+
+        assignment[dy * bbox.width + dx] = bestIdx;
+        partArea[bestIdx]++;
+        partSumX[bestIdx] += px;
+        partSumY[bestIdx] += py;
+        if (px < partMinX[bestIdx]) partMinX[bestIdx] = px;
+        if (px > partMaxX[bestIdx]) partMaxX[bestIdx] = px;
+        if (py < partMinY[bestIdx]) partMinY[bestIdx] = py;
+        if (py > partMaxY[bestIdx]) partMaxY[bestIdx] = py;
+      }
+    }
+
+    // Build feature objects for each partition
+    const results = [];
+    for (let c = 0; c < centers.length; c++) {
+      if (partArea[c] === 0) continue;
+      const w = partMaxX[c] - partMinX[c] + 1;
+      const h = partMaxY[c] - partMinY[c] + 1;
+      results.push({
+        label: label,
+        bbox: { x: partMinX[c], y: partMinY[c], width: w, height: h },
+        centroid: { x: partSumX[c] / partArea[c], y: partSumY[c] / partArea[c] },
+        area: partArea[c],
+        fillRatio: partArea[c] / (w * h),
+        aspectRatio: w / h,
+        holes: 0,
+        widthSS: w / staffSpace,
+        heightSS: h / staffSpace
+      });
+    }
+
+    return results;
+  }
+
+  /**
    * Count holes in a component using a simple background flood fill.
    * @param {Int32Array} labels
    * @param {number} imgWidth
