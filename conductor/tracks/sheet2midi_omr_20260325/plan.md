@@ -68,7 +68,7 @@
   - [x] Sub-task: Implement — emit `omr:correction` events and display them in the corrections log on the sheet2midi UI
 - [x] Task: Conductor - User Manual Verification 'Grammar Validator Auto-Correction' (Protocol in workflow.md) a0fba15
 
-## Phase 6: End-to-End Integration Testing
+## Phase 6: End-to-End Integration Testing [checkpoint: 0547ca4]
 
 - [x] Task: Create synthetic test images for pipeline validation 0bc1438
   - [x] Sub-task: Write tests — generate simple sheet music images programmatically (C scale, simple melody with accidentals, piece with rests) using Canvas API
@@ -79,4 +79,4 @@
 - [x] Task: End-to-end pipeline test with real sheet music 0bc1438
   - [x] Sub-task: Write tests — test pipeline with simple real-world sheet music from docs/zSheet (e.g., Bach Invention No. 01), verify output is reasonable (correct number of notes, plausible pitches)
   - [x] Sub-task: Implement — fix robustness issues discovered with real sheet music (noise handling, spacing variations, etc.)
-- [~] Task: Conductor - User Manual Verification 'End-to-End Integration Testing' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'End-to-End Integration Testing' (Protocol in workflow.md) 0547ca4
