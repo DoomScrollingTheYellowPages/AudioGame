@@ -4,13 +4,45 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Input Configuration — AudioGame</title>
+  <script>
+    (function() {
+      var t = localStorage.getItem('audiogame-theme');
+      if (t !== 'dark' && t !== 'warm' && t !== 'clean') t = 'dark';
+      document.documentElement.className = 'theme-' + t;
+    })();
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    .theme-dark {
+      --bg: #0d0d0d; --text: #e0e0e0; --accent: #00ff88; --error: #ff4444;
+      --control-bg: #1a1a1a; --control-border: #2a2a2a;
+      --font: 'Courier New', monospace;
+      --perfect: #00ff88; --great: #88cc44; --good: #ccaa22; --miss: #ff4444;
+      --dim: #333; --dim2: #444; --dim3: #555; --mid: #888;
+      --card-bg: #141414; --card-border: #222; --card-hover-bg: #161f18;
+    }
+    .theme-warm {
+      --bg: #faf5ef; --text: #3a3330; --accent: #e8863a; --error: #d94444;
+      --control-bg: #f0e8df; --control-border: #d9cfc3;
+      --font: 'Nunito', 'Segoe UI', sans-serif;
+      --perfect: #4caf50; --great: #8bc34a; --good: #ffc107; --miss: #d94444;
+      --dim: #bfb3a4; --dim2: #a89888; --dim3: #8a7d70; --mid: #6b5f53;
+      --card-bg: #f0e8df; --card-border: #d9cfc3; --card-hover-bg: #e8dfd4;
+    }
+    .theme-clean {
+      --bg: #ffffff; --text: #212121; --accent: #1976d2; --error: #c62828;
+      --control-bg: #f5f5f5; --control-border: #e0e0e0;
+      --font: 'Inter', 'Helvetica Neue', sans-serif;
+      --perfect: #1976d2; --great: #42a5f5; --good: #ffa726; --miss: #c62828;
+      --dim: #bdbdbd; --dim2: #9e9e9e; --dim3: #757575; --mid: #616161;
+      --card-bg: #f5f5f5; --card-border: #e0e0e0; --card-hover-bg: #eeeeee;
+    }
+
     body {
-      background: #0d0d0d;
-      color: #e0e0e0;
-      font-family: 'Courier New', monospace;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
       font-size: 13px;
       height: 100dvh;
       display: flex;
@@ -26,28 +58,28 @@
     }
 
     .back-link {
-      color: #555;
+      color: var(--dim3);
       text-decoration: none;
       font-size: 12px;
-      border: 1px solid #222;
+      border: 1px solid var(--card-border);
       border-radius: 4px;
       padding: 4px 10px;
       transition: color 0.2s, border-color 0.2s;
     }
-    .back-link:hover { color: #00ff88; border-color: #00ff88; }
+    .back-link:hover { color: var(--accent); border-color: var(--accent); }
 
     .page-title {
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 2px;
-      color: #555;
+      color: var(--dim3);
     }
 
     h2 {
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 2px;
-      color: #555;
+      color: var(--dim3);
       margin-bottom: 8px;
     }
 
@@ -61,8 +93,8 @@
     }
 
     .panel {
-      background: #141414;
-      border: 1px solid #222;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
       border-radius: 6px;
       padding: 12px;
       display: flex;
@@ -72,9 +104,9 @@
 
     /* ── Audio panel ── */
     #start-audio {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #aaa;
+      background: var(--control-bg);
+      border: 1px solid var(--dim);
+      color: var(--mid);
       padding: 6px 14px;
       border-radius: 4px;
       cursor: pointer;
@@ -84,17 +116,17 @@
       margin-bottom: 10px;
       transition: border-color 0.2s, color 0.2s;
     }
-    #start-audio:hover { border-color: #00ff88; color: #00ff88; }
-    #start-audio.active { border-color: #00ff88; color: #00ff88; }
+    #start-audio:hover { border-color: var(--accent); color: var(--accent); }
+    #start-audio.active { border-color: var(--accent); color: var(--accent); }
 
     .audio-meta {
       display: flex;
       gap: 16px;
       margin-top: 8px;
-      color: #444;
+      color: var(--dim2);
       font-size: 11px;
     }
-    .audio-meta span { color: #00ff88; }
+    .audio-meta span { color: var(--accent); }
 
     /* ── MIDI panel ── */
     .midi-header {
@@ -105,9 +137,9 @@
     }
 
     #midi-device-select {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #aaa;
+      background: var(--control-bg);
+      border: 1px solid var(--dim);
+      color: var(--mid);
       padding: 4px 8px;
       border-radius: 4px;
       font-family: inherit;
@@ -117,10 +149,10 @@
 
     .midi-status {
       font-size: 11px;
-      color: #555;
+      color: var(--dim3);
     }
-    .midi-status.ok  { color: #00ff88; }
-    .midi-status.err { color: #ff4444; }
+    .midi-status.ok  { color: var(--accent); }
+    .midi-status.err { color: var(--error); }
 
     /* Mini keyboard */
     .keyboard-wrap {
@@ -129,8 +161,8 @@
       margin-bottom: 10px;
       overflow: hidden;
       border-radius: 3px;
-      background: #0a0a0a;
-      border: 1px solid #1e1e1e;
+      background: var(--bg);
+      border: 1px solid var(--control-border);
     }
 
     /* CC bars */
@@ -149,14 +181,14 @@
     }
     .cc-label {
       font-size: 9px;
-      color: #555;
+      color: var(--dim3);
       display: flex;
       justify-content: space-between;
     }
-    .cc-label .cc-val { color: #aaa; }
+    .cc-label .cc-val { color: var(--mid); }
     .cc-track {
       height: 4px;
-      background: #1e1e1e;
+      background: var(--control-border);
       border-radius: 2px;
       overflow: hidden;
     }
@@ -171,15 +203,15 @@
     .log-wrap {
       flex: 1;
       overflow-y: auto;
-      background: #0a0a0a;
-      border: 1px solid #1e1e1e;
+      background: var(--bg);
+      border: 1px solid var(--control-border);
       border-radius: 3px;
       padding: 6px;
       min-height: 0;
     }
     .log-wrap::-webkit-scrollbar { width: 4px; }
     .log-wrap::-webkit-scrollbar-track { background: transparent; }
-    .log-wrap::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+    .log-wrap::-webkit-scrollbar-thumb { background: var(--control-border); border-radius: 2px; }
 
     .log-entry {
       display: flex;
@@ -191,17 +223,17 @@
     }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; } }
 
-    .log-time { color: #333; min-width: 48px; }
+    .log-time { color: var(--dim); min-width: 48px; }
     .log-type { min-width: 60px; font-weight: bold; }
-    .log-type.note-on  { color: #00ff88; }
+    .log-type.note-on  { color: var(--accent); }
     .log-type.note-off { color: #ff6644; }
     .log-type.cc       { color: #4488ff; }
-    .log-type.other    { color: #888; }
+    .log-type.other    { color: var(--mid); }
     .log-body { color: #ccc; }
 
     /* ── Tuner ── */
     .tuner {
-      border-top: 1px solid #1e1e1e;
+      border-top: 1px solid var(--control-border);
       margin-top: 8px;
       padding-top: 10px;
     }
@@ -217,7 +249,7 @@
       font-weight: bold;
       min-width: 42px;
       text-align: center;
-      color: #444;
+      color: var(--dim2);
       letter-spacing: 1px;
       transition: color 0.1s;
     }
@@ -231,15 +263,15 @@
 
     .tuner-acc {
       font-size: 12px;
-      color: #333;
+      color: var(--dim);
       user-select: none;
     }
 
     .tuner-track {
       flex: 1;
       height: 14px;
-      background: #0a0a0a;
-      border: 1px solid #1e1e1e;
+      background: var(--bg);
+      border: 1px solid var(--control-border);
       border-radius: 7px;
       position: relative;
       overflow: hidden;
@@ -251,7 +283,7 @@
       top: 2px;
       bottom: 2px;
       width: 1px;
-      background: #2a2a2a;
+      background: var(--control-border);
       transform: translateX(-50%);
     }
 
@@ -260,7 +292,7 @@
       top: 2px;
       bottom: 2px;
       width: 4px;
-      background: #2a2a2a;
+      background: var(--control-border);
       border-radius: 2px;
       transform: translateX(-50%);
       left: 50%;
@@ -269,7 +301,7 @@
 
     .tuner-freq {
       font-size: 10px;
-      color: #555;
+      color: var(--dim3);
       min-width: 58px;
       text-align: right;
     }
@@ -277,7 +309,7 @@
     .tuner-cents {
       text-align: center;
       font-size: 10px;
-      color: #333;
+      color: var(--dim);
       margin-top: 4px;
       letter-spacing: 1px;
       transition: color 0.1s;
