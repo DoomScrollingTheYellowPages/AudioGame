@@ -48,7 +48,7 @@
   - [x] Sub-task: Implement — ensure split noteheads are re-labeled and feature-extracted correctly before passing downstream
 - [x] Task: Conductor - User Manual Verification 'Touching Notehead Separation' (Protocol in workflow.md) a93a253
 
-## Phase 4: Rest Integration & Timing
+## Phase 4: Rest Integration & Timing [checkpoint: 8e7095f]
 
 - [x] Task: Integrate rests into the note sequence in OMREngine 4fcfe82
   - [x] Sub-task: Write tests — test that rests appear in the output note array at correct time positions with correct durations and zero velocity
@@ -56,7 +56,7 @@
 - [x] Task: Update MidiWriter to handle rest gaps 4fcfe82
   - [x] Sub-task: Write tests — test that MIDI output contains silence (no noteOn) during rest periods, and subsequent notes start at the correct tick offset
   - [x] Sub-task: Implement — adjust MIDI assembly to insert appropriate delta-time gaps for rests
-- [~] Task: Conductor - User Manual Verification 'Rest Integration & Timing' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Rest Integration & Timing' (Protocol in workflow.md) 8e7095f
 
 ## Phase 5: Grammar Validator Auto-Correction
 
