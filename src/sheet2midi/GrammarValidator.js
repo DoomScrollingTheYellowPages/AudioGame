@@ -180,6 +180,63 @@ export class GrammarValidator {
   }
 
   /**
+   * Validate and auto-correct in one step. Runs validate, then autoCorrect,
+   * and emits omr:correction events for any changes made.
+   * @param {Array} notes
+   * @param {Array} rests
+   * @param {Array} allSymbols
+   * @param {number} staffSpace
+   * @param {number[]} [timeSig]
+   * @returns {{notes: Array, rests: Array, corrections: Array<string>, chords: Array}}
+   */
+  validateAndCorrect(notes, rests, allSymbols, staffSpace, timeSig = DEFAULT_TIME_SIG) {
+    const result = this.validate(notes, rests, allSymbols, staffSpace, timeSig);
+    const beatsPerMeasure = timeSig[0] * (4 / timeSig[1]);
+
+    // Segment into measures for auto-correction
+    const barLines = allSymbols
+      .filter(s => s.type === SymbolType.BAR_LINE)
+      .map(s => s.component.centroid.x)
+      .sort((a, b) => a - b);
+
+    const allEvents = [
+      ...result.notes.map(n => ({ ...n, isRest: false })),
+      ...result.rests.map(r => ({ ...r, isRest: true }))
+    ];
+    allEvents.sort((a, b) => a.x - b.x);
+
+    const measures = this._segmentMeasures(allEvents, barLines);
+
+    // Track original beats for comparison
+    const originalBeats = new Map();
+    for (const m of measures) {
+      for (const e of m) originalBeats.set(e, e.beats);
+    }
+
+    const corrected = this.autoCorrect(measures, beatsPerMeasure);
+
+    // Emit correction events for any changed notes
+    for (const e of corrected) {
+      const orig = originalBeats.get(e);
+      if (orig !== undefined && orig !== e.beats) {
+        this._bus.emit('omr:correction', {
+          x: e.x,
+          originalBeats: orig,
+          correctedBeats: e.beats,
+          midiNote: e.midiNote
+        });
+      }
+    }
+
+    return {
+      notes: corrected.filter(e => !e.isRest),
+      rests: corrected.filter(e => e.isRest),
+      corrections: result.corrections,
+      chords: result.chords
+    };
+  }
+
+  /**
    * Attempt automatic correction of measure beat counts.
    * @param {Array} measures - arrays of events per measure
    * @param {number} beatsPerMeasure

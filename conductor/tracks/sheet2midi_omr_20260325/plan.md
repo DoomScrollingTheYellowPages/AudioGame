@@ -60,7 +60,7 @@
 
 ## Phase 5: Grammar Validator Auto-Correction
 
-- [ ] Task: Connect auto-correction to the OMR pipeline
+- [~] Task: Connect auto-correction to the OMR pipeline
   - [ ] Sub-task: Write tests — test that a measure with a small beat deficit (e.g., missing dot) is auto-corrected by adjusting the lowest-confidence note's duration
   - [ ] Sub-task: Implement — integrate the existing auto-correct skeleton in GrammarValidator so corrections are applied to the note array before MIDI assembly
 - [ ] Task: Report corrections to the UI

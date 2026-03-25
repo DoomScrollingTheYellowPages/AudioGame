@@ -120,6 +120,37 @@ describe('GrammarValidator', () => {
     });
   });
 
+  // ── validateAndCorrect (pipeline integration) ─
+  describe('validateAndCorrect', () => {
+    it('auto-corrects measure deficits and emits omr:correction events', () => {
+      const bus = new MockBus();
+      const gv = new GrammarValidator(bus);
+      // 3.5 beats in 4/4 — weakest note should be auto-corrected
+      const notes = [
+        { ...fakeNote(10, 1), symbol: { confidence: 0.9, type: 'filled_notehead', component: { centroid: { x: 10, y: 120 }, bbox: { x: 5, y: 115, width: 10, height: 10 } } } },
+        { ...fakeNote(20, 1), symbol: { confidence: 0.9, type: 'filled_notehead', component: { centroid: { x: 20, y: 120 }, bbox: { x: 15, y: 115, width: 10, height: 10 } } } },
+        { ...fakeNote(30, 1), symbol: { confidence: 0.9, type: 'filled_notehead', component: { centroid: { x: 30, y: 120 }, bbox: { x: 25, y: 115, width: 10, height: 10 } } } },
+        { ...fakeNote(40, 0.5), symbol: { confidence: 0.3, type: 'filled_notehead', component: { centroid: { x: 40, y: 120 }, bbox: { x: 35, y: 115, width: 10, height: 10 } } } }
+      ];
+      const result = gv.validateAndCorrect(notes, [], [], 10, [4, 4]);
+      const totalBeats = result.notes.reduce((sum, n) => sum + n.beats, 0);
+      assert.ok(Math.abs(totalBeats - 4) < 0.01, `corrected total ${totalBeats} should be 4`);
+      // Should have emitted correction events
+      const correctionEvents = bus.getEvents('omr:correction');
+      assert.ok(correctionEvents.length > 0, 'should emit omr:correction events');
+    });
+
+    it('does not correct already-correct measures', () => {
+      const bus = new MockBus();
+      const gv = new GrammarValidator(bus);
+      const notes = [fakeNote(10, 1), fakeNote(20, 1), fakeNote(30, 1), fakeNote(40, 1)];
+      const result = gv.validateAndCorrect(notes, [], [], 10, [4, 4]);
+      const totalBeats = result.notes.reduce((sum, n) => sum + n.beats, 0);
+      assert.equal(totalBeats, 4);
+      assert.equal(bus.getEvents('omr:correction').length, 0);
+    });
+  });
+
   // ── autoCorrect ────────────────────────────
   describe('autoCorrect', () => {
     it('adjusts weakest note to fill measure', () => {
