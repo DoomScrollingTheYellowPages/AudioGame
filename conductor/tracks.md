@@ -19,5 +19,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: Chromatic Flashcard Support
+## [x] Track: Chromatic Flashcard Support
 *Link: [./conductor/tracks/chromatic_flashcards_20260325/](./conductor/tracks/chromatic_flashcards_20260325/)*
