@@ -8,14 +8,14 @@ import { SymbolType } from '../../src/sheet2midi/SymbolClassifier.js';
 import { MockBus } from '../test-helper.js';
 
 /** Helper: fake a note event */
-function fakeNote(x, beats, midiNote = 60) {
+function fakeNote(x, beats, midiNote = 60, area = 80) {
   return {
     x,
     beats,
     midiNote,
     symbol: {
       type: SymbolType.FILLED_NOTEHEAD,
-      component: { centroid: { x, y: 120 }, bbox: { x: x - 5, y: 115, width: 10, height: 10 } },
+      component: { centroid: { x, y: 120 }, bbox: { x: x - 5, y: 115, width: 10, height: 10 }, area },
       confidence: 0.8
     },
     isRest: false
@@ -175,6 +175,56 @@ describe('GrammarValidator', () => {
       const corrected = gv.autoCorrect(measures, 4);
       assert.equal(corrected.length, 4);
       assert.equal(corrected.reduce((sum, e) => sum + e.beats, 0), 4);
+    });
+  });
+
+  // ── deduplication ──────────────────────────
+  describe('deduplication', () => {
+    it('removes duplicate: same pitch within 1 staffSpace', () => {
+      const bus = new MockBus();
+      const gv = new GrammarValidator(bus);
+      // Two notes at midi=60 within 8px (staffSpace=10 → threshold=10px)
+      const notes = [fakeNote(100, 1, 60, 80), fakeNote(105, 1, 60, 80)];
+      const result = gv.validate(notes, [], [], 10, [4, 4]);
+      assert.equal(result.notes.length, 1,
+        `Expected 1 note after dedup, got ${result.notes.length}`);
+    });
+
+    it('keeps both: same pitch but > 1 staffSpace apart', () => {
+      const bus = new MockBus();
+      const gv = new GrammarValidator(bus);
+      const notes = [fakeNote(100, 1, 60), fakeNote(115, 1, 60)]; // 15px apart, staffSpace=10
+      const result = gv.validate(notes, [], [], 10, [4, 4]);
+      assert.equal(result.notes.length, 2,
+        `Expected 2 notes (far apart), got ${result.notes.length}`);
+    });
+
+    it('keeps both: different pitches within 1 staffSpace (chord)', () => {
+      const bus = new MockBus();
+      const gv = new GrammarValidator(bus);
+      const notes = [fakeNote(100, 1, 60), fakeNote(102, 1, 64)]; // different pitch
+      const result = gv.validate(notes, [], [], 10, [4, 4]);
+      assert.equal(result.notes.length, 2,
+        `Expected 2 notes (different pitch), got ${result.notes.length}`);
+    });
+
+    it('keeps note with larger area when deduplicating', () => {
+      const bus = new MockBus();
+      const gv = new GrammarValidator(bus);
+      // Smaller area note first, larger area note second
+      const notes = [fakeNote(100, 1, 60, 50), fakeNote(104, 1, 60, 120)];
+      const result = gv.validate(notes, [], [], 10, [4, 4]);
+      assert.equal(result.notes.length, 1);
+      assert.equal(result.notes[0].symbol.component.area, 120,
+        'Should keep the note with larger area');
+    });
+
+    it('existing 4-note sequence is not deduplicated (all different x positions)', () => {
+      const bus = new MockBus();
+      const gv = new GrammarValidator(bus);
+      const notes = [fakeNote(10, 1), fakeNote(50, 1), fakeNote(100, 1), fakeNote(150, 1)];
+      const result = gv.validate(notes, [], [], 10, [4, 4]);
+      assert.equal(result.notes.length, 4);
     });
   });
 });

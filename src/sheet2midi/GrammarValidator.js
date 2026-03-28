@@ -32,9 +32,13 @@ export class GrammarValidator {
   validate(notes, rests, allSymbols, staffSpace, timeSig = DEFAULT_TIME_SIG) {
     const corrections = [];
 
+    // Deduplicate notes: remove spatially adjacent notes with the same pitch.
+    // Keeps the note with the larger component area (better detection quality).
+    const dedupedNotes = this._deduplicateNotes(notes, staffSpace);
+
     // Merge notes and rests into a time-ordered sequence
     const events = [
-      ...notes.map(n => ({ ...n, isRest: false })),
+      ...dedupedNotes.map(n => ({ ...n, isRest: false })),
       ...rests.map(r => ({ ...r, isRest: true, midiNote: -1 }))
     ];
     events.sort((a, b) => a.x - b.x);
@@ -278,5 +282,41 @@ export class GrammarValidator {
     }
 
     return corrected;
+  }
+
+  /**
+   * Remove spatially adjacent duplicate notes (same pitch, within 1 staffSpace).
+   * Keeps the note with the larger component area; if equal, keeps the first.
+   * @param {Array} notes
+   * @param {number} staffSpace
+   * @returns {Array}
+   */
+  _deduplicateNotes(notes, staffSpace) {
+    if (notes.length <= 1) return notes;
+    const threshold = staffSpace;
+    const keep = new Array(notes.length).fill(true);
+
+    for (let i = 0; i < notes.length; i++) {
+      if (!keep[i]) continue;
+      for (let j = i + 1; j < notes.length; j++) {
+        if (!keep[j]) continue;
+        if (notes[j].midiNote !== notes[i].midiNote) continue;
+        if (Math.abs(notes[j].x - notes[i].x) >= threshold) continue;
+
+        // Duplicate: keep the one with larger area
+        const areaI = notes[i].symbol?.component?.area ?? 0;
+        const areaJ = notes[j].symbol?.component?.area ?? 0;
+        if (areaJ > areaI) {
+          keep[i] = false;
+          console.log(`[OMR] Dedup: dropped note at x=${Math.round(notes[i].x)} midi=${notes[i].midiNote} (area=${areaI}) in favor of x=${Math.round(notes[j].x)} (area=${areaJ})`);
+          break; // notes[i] is gone, no need to compare further
+        } else {
+          keep[j] = false;
+          console.log(`[OMR] Dedup: dropped note at x=${Math.round(notes[j].x)} midi=${notes[j].midiNote} (area=${areaJ}) in favor of x=${Math.round(notes[i].x)} (area=${areaI})`);
+        }
+      }
+    }
+
+    return notes.filter((_, idx) => keep[idx]);
   }
 }
