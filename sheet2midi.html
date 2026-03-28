@@ -207,7 +207,7 @@
     .preview-area.active { display: block; }
 
     .preview-section {
-      margin-bottom: 16px;
+      margin-bottom: 8px;
     }
 
     .preview-section h3 {
@@ -218,13 +218,31 @@
       margin-bottom: 8px;
     }
 
+    .preview-wrap {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+    }
+
     #preview-canvas {
+      display: block;
       max-width: 100%;
       height: auto;
       border: 1px solid var(--card-border);
       border-radius: 4px;
       background: #fff;
     }
+
+    #overlay-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: none;
+      border-radius: 4px;
+    }
+    #overlay-canvas.active { display: block; }
 
     /* ── Results ── */
     .results-area {
@@ -335,6 +353,50 @@
       text-align: center;
     }
 
+    /* ── Pipeline Viz Nav ── */
+    .viz-nav {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .viz-nav.active { display: flex; }
+
+    .viz-step-label {
+      font-size: 12px;
+      color: var(--accent);
+      min-width: 200px;
+    }
+
+    .viz-step-count {
+      font-size: 11px;
+      color: var(--mid);
+    }
+
+    .viz-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: var(--mid);
+    }
+
+    .legend-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
     /* ── Error ── */
     .error-msg {
       width: 100%;
@@ -379,22 +441,7 @@
       accent-color: var(--accent);
     }
 
-    #load-test-btn {
-      background: var(--control-bg);
-      color: var(--good);
-      border: 1px solid var(--good);
-      border-radius: 4px;
-      padding: 4px 12px;
-      font-family: var(--font);
-      font-size: 11px;
-      cursor: pointer;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      display: none;
-    }
-    #load-test-btn:hover { opacity: 0.8; }
-
-    .debug-results {
+.debug-results {
       display: none;
       background: var(--control-bg);
       border: 1px solid var(--control-border);
@@ -493,13 +540,23 @@
   <div class="preview-area" id="preview-area">
     <div class="preview-section">
       <h3>Source Image</h3>
-      <canvas id="preview-canvas"></canvas>
+      <div class="preview-wrap">
+        <canvas id="preview-canvas"></canvas>
+        <canvas id="overlay-canvas"></canvas>
+      </div>
       <div class="page-selector" id="page-selector">
         <button class="page-nav-btn" id="prev-page">&#9664;</button>
         <span id="page-label">Page 1 / 1</span>
         <button class="page-nav-btn" id="next-page">&#9654;</button>
       </div>
     </div>
+    <div class="viz-nav" id="viz-nav">
+      <button class="page-nav-btn" id="viz-prev">&#9664;</button>
+      <span class="viz-step-label" id="viz-step-label">—</span>
+      <span class="viz-step-count" id="viz-step-count"></span>
+      <button class="page-nav-btn" id="viz-next">&#9654;</button>
+    </div>
+    <div class="viz-legend" id="viz-legend"></div>
   </div>
 
   <!-- Results -->
@@ -535,7 +592,6 @@
         <input type="checkbox" id="debug-toggle" />
         Debug Mode
       </label>
-      <button id="load-test-btn">Load Test Image</button>
     </div>
     <div class="debug-results" id="debug-results">
       <div id="debug-content"></div>

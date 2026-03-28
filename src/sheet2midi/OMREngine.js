@@ -49,12 +49,18 @@ export class OMREngine {
 
     // Stage 1.5: Preprocessing — border cropping only (median filter applied later)
     const cropped = this._imageProcessor.cropBorders(gray, width, height);
-    if (cropped.offsetX > 0 || cropped.offsetY > 0) {
-      console.log(`[OMR] Cropped borders: offset=(${cropped.offsetX},${cropped.offsetY}) size=${cropped.width}×${cropped.height} (was ${width}×${height})`);
+    const cropOffsetX = cropped.offsetX;
+    const cropOffsetY = cropped.offsetY;
+    if (cropOffsetX > 0 || cropOffsetY > 0) {
+      console.log(`[OMR] Cropped borders: offset=(${cropOffsetX},${cropOffsetY}) size=${cropped.width}×${cropped.height} (was ${width}×${height})`);
       gray = cropped.gray;
       width = cropped.width;
       height = cropped.height;
     }
+
+    // Save pre-upscale dimensions so the debug overlay can map coordinates correctly
+    const preCropW = width;
+    const preCropH = height;
 
     // Stage 1.8: Auto-upscale small images for reliable feature detection
     let wasUpscaled = false;
@@ -70,8 +76,12 @@ export class OMREngine {
 
     // Stage 2: Binarization
     this._bus.emit('omr:progress', { stage: 2, name: 'Binarizing' });
-const binary = this._imageProcessor.binarize(gray, width, height);
+    const binary = this._imageProcessor.binarize(gray, width, height);
     this._bus.emit('omr:preprocessed', { width, height });
+    this._bus.emit('omr:debug', {
+      step: 'binary', label: 'Binarization',
+      data: { binary: binary.slice(), width, height, cropOffsetX, cropOffsetY, preCropW, preCropH }
+    });
 
     // Stage 3: Skew correction (skip for upscaled digital images)
     this._bus.emit('omr:progress', { stage: 3, name: 'Correcting skew' });
@@ -97,6 +107,10 @@ const binary = this._imageProcessor.binarize(gray, width, height);
       this._staffAnalyzer.detect(correctedBinary, width, height);
 
     console.log(`[OMR] Stage 4: ${groups.length} staff groups, staffSpace=${staffSpace}, lineThick=${lineThickness}, staffRows=${staffRows.length}`);
+    this._bus.emit('omr:debug', {
+      step: 'staff_lines', label: 'Staff Line Detection',
+      data: { binary: correctedBinary.slice(), width, height, staffRows, groups, staffSpace, lineThickness }
+    });
 
     if (groups.length === 0) {
       throw new Error('No staff lines detected. Ensure the image contains printed sheet music.');
@@ -113,6 +127,11 @@ const binary = this._imageProcessor.binarize(gray, width, height);
     cleaned = this._imageProcessor.morphClose(cleaned, width, height,
       Math.ceil(lineThickness / 2) + 1);
 
+    this._bus.emit('omr:debug', {
+      step: 'cleaned', label: 'After Staff Removal',
+      data: { binary: cleaned.slice(), width, height }
+    });
+
     // Stage 6: Connected component labeling
     this._bus.emit('omr:progress', { stage: 6, name: 'Segmenting symbols' });
     const { labels, count } = this._componentLabeler.label(cleaned, width, height);
@@ -121,33 +140,31 @@ const binary = this._imageProcessor.binarize(gray, width, height);
     );
     console.log(`[OMR] Stage 6: ${count} raw labels, ${components.length} components after filtering`);
 
-    // DEBUG: dump rightmost components to trace C5
-    const rightEdge = width * 0.75;
-    const rightComps = components
-      .filter(c => c.centroid.x >= rightEdge)
-      .sort((a, b) => a.centroid.x - b.centroid.x);
-    console.log(`[OMR] DEBUG right-edge (x>=${Math.round(rightEdge)}): ${rightComps.length} components`);
-    for (const c of rightComps) {
-      console.log(`  x=${Math.round(c.centroid.x)} y=${Math.round(c.centroid.y)} bbox=${c.bbox.x},${c.bbox.y} ${c.bbox.width}x${c.bbox.height} wSS=${c.widthSS.toFixed(2)} hSS=${c.heightSS.toFixed(2)} ar=${c.aspectRatio.toFixed(2)} fill=${c.fillRatio.toFixed(2)} area=${c.area}`);
-    }
+    // Stage 6.2: Spatial validity filter — discard components outside the
+    // staff's vertical zone or taller than the full staff span.
+    // This removes image-border artifacts (e.g. a vertical line at the page edge).
+    const staffTop    = Math.min(...groups.map(g => g[0]));
+    const staffBottom = Math.max(...groups.map(g => g[g.length - 1]));
+    const staffSpan   = staffBottom - staffTop; // height of one staff system
+    const zoneTop    = staffTop    - staffSpace * 2;
+    const zoneBottom = staffBottom + staffSpace * 2;
+    // No musical symbol legitimately exceeds the staff span by more than ~1.5×
+    const maxHeightPx = staffSpan * 1.5 + staffSpace * 2;
 
-    // DEBUG: scan rightmost 20% of binary image for any black pixels
-    const scanStartX = Math.floor(width * 0.85);
-    let blackPixelCount = 0;
-    let rightmostBlack = 0;
-    for (let y = 0; y < height; y++) {
-      for (let x = scanStartX; x < width; x++) {
-        if (correctedBinary[y * width + x] === 0) {
-          blackPixelCount++;
-          if (x > rightmostBlack) rightmostBlack = x;
-        }
-      }
-    }
-    console.log(`[OMR] DEBUG: black pixels in rightmost 15%: ${blackPixelCount}, rightmost black pixel at x=${rightmostBlack}/${width}`);
+    const validComponents = components.filter(c => {
+      if (c.centroid.y < zoneTop || c.centroid.y > zoneBottom) return false;
+      if (c.bbox.height > maxHeightPx) return false;
+      return true;
+    });
+    console.log(`[OMR] Stage 6.2: ${validComponents.length}/${components.length} components kept after spatial filter`);
 
     // Stage 6.5: Split note+stem combos — extract noteheads from tall components
-    const splitComponents = this._splitNoteStems(components, correctedBinary, width, height, staffSpace);
-    console.log(`[OMR] Stage 6.5: ${splitComponents.length} components after note+stem splitting (added ${splitComponents.length - components.length})`);
+    const splitComponents = this._splitNoteStems(validComponents, correctedBinary, width, height, staffSpace);
+    console.log(`[OMR] Stage 6.5: ${splitComponents.length} components after note+stem splitting (added ${splitComponents.length - validComponents.length})`);
+    this._bus.emit('omr:debug', {
+      step: 'components', label: 'Connected Components',
+      data: { binary: cleaned.slice(), width, height, components: splitComponents, staffSpace }
+    });
 
     // Stage 7: Symbol classification
     this._bus.emit('omr:progress', { stage: 7, name: 'Classifying symbols' });
@@ -155,16 +172,10 @@ const binary = this._imageProcessor.binarize(gray, width, height);
     const typeCounts = {};
     for (const s of symbols) typeCounts[s.type] = (typeCounts[s.type] || 0) + 1;
     console.log(`[OMR] Stage 7: ${symbols.length} symbols`, JSON.stringify(typeCounts));
-
-    // DEBUG: log rightmost classified symbols
-    const rightSymbols = symbols
-      .filter(s => s.component.centroid.x >= rightEdge)
-      .sort((a, b) => a.component.centroid.x - b.component.centroid.x);
-    console.log(`[OMR] DEBUG right-edge symbols after classification:`);
-    for (const s of rightSymbols) {
-      const c = s.component;
-      console.log(`  type=${s.type} x=${Math.round(c.centroid.x)} y=${Math.round(c.centroid.y)} wSS=${c.widthSS.toFixed(2)} hSS=${c.heightSS.toFixed(2)} ar=${c.aspectRatio.toFixed(2)} fill=${c.fillRatio.toFixed(2)} split=${!!c._splitFrom}`);
-    }
+    this._bus.emit('omr:debug', {
+      step: 'symbols', label: 'Classified Symbols',
+      data: { binary: cleaned.slice(), width, height, symbols, staffSpace }
+    });
 
     // Log a sample of components that were classified as unknown to understand what's being missed
     const unknowns = symbols.filter(s => s.type === 'unknown');
@@ -199,6 +210,10 @@ const binary = this._imageProcessor.binarize(gray, width, height);
       symbols, groups, staffSpace, correctedBinary, width
     );
     console.log(`[OMR] Stage 8: ${pitchedNotes.length} pitched notes`);
+    this._bus.emit('omr:debug', {
+      step: 'pitched', label: 'Pitch Assignment',
+      data: { binary: cleaned.slice(), width, height, notes: pitchedNotes, groups, staffSpace }
+    });
 
     // Stage 9: Duration assignment
     this._bus.emit('omr:progress', { stage: 9, name: 'Assigning durations' });
@@ -216,6 +231,10 @@ const binary = this._imageProcessor.binarize(gray, width, height);
       );
 
     console.log(`[OMR] Stage 10: ${validatedNotes.length} validated notes, ${validatedRests.length} rests, ${corrections.length} corrections`);
+    this._bus.emit('omr:debug', {
+      step: 'final', label: 'Final Notes',
+      data: { binary: cleaned.slice(), width, height, notes: validatedNotes, symbols, groups, staffSpace }
+    });
 
     // Stage 11: MIDI assembly — merge notes and rests, compute start times
     this._bus.emit('omr:progress', { stage: 11, name: 'Generating MIDI' });

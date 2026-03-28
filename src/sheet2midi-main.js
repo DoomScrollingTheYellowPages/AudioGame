@@ -5,6 +5,7 @@
 
 import { EventBus } from './core/EventBus.js';
 import { OMREngine } from './sheet2midi/OMREngine.js';
+import { OMRDebugOverlay } from './sheet2midi/OMRDebugOverlay.js';
 
 // ── Constants ──────────────────────────────────
 
@@ -36,11 +37,19 @@ const downloadBtn = document.getElementById('download-btn');
 const correctionsLog = document.getElementById('corrections-log');
 const correctionsList = document.getElementById('corrections-list');
 const errorMsg = document.getElementById('error-msg');
+const overlayCanvas = document.getElementById('overlay-canvas');
+const vizNav = document.getElementById('viz-nav');
+const vizPrev = document.getElementById('viz-prev');
+const vizNext = document.getElementById('viz-next');
+const vizStepLabel = document.getElementById('viz-step-label');
+const vizStepCount = document.getElementById('viz-step-count');
+const vizLegend = document.getElementById('viz-legend');
 
 // ── State ──────────────────────────────────────
 
 const bus = new EventBus();
 const engine = new OMREngine(bus);
+const overlay = new OMRDebugOverlay(overlayCanvas);
 let selectedFile = null;
 let lastMidiBuffer = null;
 let pdfDoc = null;
@@ -203,8 +212,11 @@ processBtn.addEventListener('click', async () => {
   processBtn.disabled = true;
   progressArea.classList.add('active');
   resultsArea.classList.remove('active');
+  overlayCanvas.classList.remove('active');
+  vizNav.classList.remove('active');
   errorMsg.classList.remove('active');
   correctionsLog.classList.remove('active');
+  overlay.reset();
 
   const bpm = parseInt(bpmInput.value, 10) || 120;
   const [num, den] = timeSigSelect.value.split('/').map(Number);
@@ -235,6 +247,23 @@ processBtn.addEventListener('click', async () => {
     resultsArea.classList.add('active');
     progressArea.classList.remove('active');
 
+    // Show pipeline visualization overlay
+    if (overlay.stepCount > 0) {
+      const firstData = overlay._steps[0].data;
+      overlay.setDimensions(
+        previewCanvas.width, previewCanvas.height,
+        firstData.width, firstData.height,
+        firstData.cropOffsetX || 0,
+        firstData.cropOffsetY || 0,
+        firstData.preCropW || null,
+        firstData.preCropH || null
+      );
+      overlay.goTo(overlay.stepCount - 1); // start on final step
+      _updateVizUI();
+      overlayCanvas.classList.add('active');
+      vizNav.classList.add('active');
+    }
+
     // Debug display
     renderDebugResults(result, selectedFile?.name || '');
 
@@ -262,12 +291,37 @@ bus.on('omr:progress', ({ stage, name }) => {
   progressText.textContent = `Stage ${stage}/11: ${name}`;
 });
 
+// ── Pipeline Debug Overlay ──────────────────────
+
+bus.on('omr:debug', (stepData) => {
+  overlay.addStep(stepData);
+});
+
+function _updateVizUI() {
+  const total = overlay.stepCount;
+  const idx = overlay.currentIndex;
+  vizStepLabel.textContent = overlay.currentLabel;
+  vizStepCount.textContent = `${idx + 1} / ${total}`;
+  vizPrev.disabled = idx <= 0;
+  vizNext.disabled = idx >= total - 1;
+  vizLegend.innerHTML = overlay.legendHtml();
+}
+
+vizPrev.addEventListener('click', () => {
+  overlay.prev();
+  _updateVizUI();
+});
+
+vizNext.addEventListener('click', () => {
+  overlay.next();
+  _updateVizUI();
+});
+
 // ── MIDI Download ──────────────────────────────
 
 // ── Debug Panel ─────────────────────────────
 
 const debugToggle = document.getElementById('debug-toggle');
-const loadTestBtn = document.getElementById('load-test-btn');
 const debugResults = document.getElementById('debug-results');
 const debugContent = document.getElementById('debug-content');
 
@@ -282,21 +336,7 @@ const TEST_EXPECTED = {
 };
 
 debugToggle.addEventListener('change', () => {
-  loadTestBtn.style.display = debugToggle.checked ? 'inline-block' : 'none';
   if (!debugToggle.checked) debugResults.classList.remove('active');
-});
-
-loadTestBtn.addEventListener('click', async () => {
-  try {
-    const resp = await fetch('TestableObjects/CMajorScale.png');
-    if (!resp.ok) throw new Error(`Failed to load test image: ${resp.status}`);
-    const blob = await resp.blob();
-    const file = new File([blob], 'CMajorScale.png', { type: 'image/png' });
-    selectFile(file);
-  } catch (err) {
-    errorMsg.textContent = err.message;
-    errorMsg.classList.add('active');
-  }
 });
 
 /** @param {object} result - from engine.process() */
