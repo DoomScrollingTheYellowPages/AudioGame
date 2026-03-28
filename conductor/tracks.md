@@ -32,7 +32,4 @@ This file tracks all major tracks for the project. Each track has its own detail
 ## [ ] Track: Bass Staff Support (OMR Pipeline)
 *Link: [./conductor/tracks/bass_staff_20260328/](./conductor/tracks/bass_staff_20260328/)*
 
----
 
-## [x] Track: Grand Staff OMR Support
-*Link: [./conductor/tracks/grand_staff_20260328/](./conductor/tracks/grand_staff_20260328/)*

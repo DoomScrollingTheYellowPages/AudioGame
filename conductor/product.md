@@ -18,8 +18,8 @@ Interactive flashcard drills and speed-reading exercises that teach users to ide
 ### 2. Rhythm & Note Accuracy Game
 A Guitar Hero-style music game where notes scroll across a highway and players must hit them in time. Supports input via MIDI controllers, microphone pitch detection, on-screen buttons, and keyboard. Includes built-in songs and custom MIDI file upload.
 
-### 3. Sheet Music to MIDI (OMR) — Planned
-An optical music recognition engine intended to convert scanned sheet music images into MIDI data. This feature is not yet functional. The design includes detection of staff lines, clefs, noteheads, accidentals, key signatures, and rhythmic values to produce playable MIDI output.
+### 3. Sheet Music to MIDI (OMR)
+An optical music recognition engine that converts scanned or photographed sheet music images into MIDI data. Supports treble clef, bass clef, and grand staff (paired treble + bass staves) input. Detects staff lines, clefs (including brace-detected grand staff pairs), noteheads, accidentals, key signatures, barlines, and rhythmic values. Single-staff input produces Format 0 MIDI; grand staff input produces Format 1 two-track MIDI (treble = track 1, bass = track 2). A clef selector lets users specify treble, bass, single-staff auto, or grand staff auto detection.
 
 ### 4. MIDI to Sheet Music Export
 Converts MIDI files into readable sheet music, exportable as PDF or other standard notation formats.

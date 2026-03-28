@@ -1,0 +1,8 @@
+{
+  "track_id": "omr_validation_20260328",
+  "type": "feature",
+  "status": "in_progress",
+  "created_at": "2026-03-28T00:00:00Z",
+  "updated_at": "2026-03-28T00:00:00Z",
+  "description": "OMR Validation & Ground Truth Testing — automated Node-based harness comparing pipeline output to ground truth JSON fixtures, with C5 bug fix"
+}
