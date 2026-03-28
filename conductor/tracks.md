@@ -21,3 +21,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## [x] Track: Chromatic Flashcard Support
 *Link: [./conductor/tracks/chromatic_flashcards_20260325/](./conductor/tracks/chromatic_flashcards_20260325/)*
+
+---
+
+## [ ] Track: OMR Validation & Ground Truth Testing
+*Link: [./conductor/tracks/omr_validation_20260328/](./conductor/tracks/omr_validation_20260328/)*

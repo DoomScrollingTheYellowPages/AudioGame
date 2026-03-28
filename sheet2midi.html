@@ -348,6 +348,103 @@
       display: none;
     }
     .error-msg.active { display: block; }
+
+    /* ── Debug Panel ── */
+    .debug-panel {
+      width: 100%;
+      max-width: 800px;
+      display: none;
+    }
+    .debug-panel.active { display: block; }
+
+    .debug-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .debug-header label {
+      font-size: 11px;
+      color: var(--mid);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #debug-toggle {
+      accent-color: var(--accent);
+    }
+
+    #load-test-btn {
+      background: var(--control-bg);
+      color: var(--good);
+      border: 1px solid var(--good);
+      border-radius: 4px;
+      padding: 4px 12px;
+      font-family: var(--font);
+      font-size: 11px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: none;
+    }
+    #load-test-btn:hover { opacity: 0.8; }
+
+    .debug-results {
+      display: none;
+      background: var(--control-bg);
+      border: 1px solid var(--control-border);
+      border-radius: 4px;
+      padding: 12px;
+      font-size: 11px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .debug-results.active { display: block; }
+
+    .debug-results h4 {
+      color: var(--accent);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 12px 0 6px 0;
+    }
+    .debug-results h4:first-child { margin-top: 0; }
+
+    .debug-results table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 8px;
+    }
+
+    .debug-results th {
+      text-align: left;
+      color: var(--dim3);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 2px 6px;
+      border-bottom: 1px solid var(--control-border);
+    }
+
+    .debug-results td {
+      padding: 2px 6px;
+      color: var(--text);
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .debug-results .match { color: var(--perfect); }
+    .debug-results .mismatch { color: var(--error); }
+
+    .debug-expected {
+      color: var(--dim3);
+      font-size: 10px;
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
@@ -361,7 +458,7 @@
   <!-- Upload -->
   <div class="upload-area" id="upload-area">
     <h2>Drop sheet music here</h2>
-    <p>PNG, JPG, BMP, or PDF &mdash; clean printed scores work best</p>
+    <p>PNG, JPG, BMP, or PDF &mdash; drop, click, or paste (Ctrl+V)</p>
     <input type="file" id="file-input" accept="image/png,image/jpeg,image/bmp,application/pdf" />
   </div>
 
@@ -430,6 +527,20 @@
 
   <!-- Error -->
   <div class="error-msg" id="error-msg"></div>
+
+  <!-- Debug Panel -->
+  <div class="debug-panel active" id="debug-panel">
+    <div class="debug-header">
+      <label>
+        <input type="checkbox" id="debug-toggle" />
+        Debug Mode
+      </label>
+      <button id="load-test-btn">Load Test Image</button>
+    </div>
+    <div class="debug-results" id="debug-results">
+      <div id="debug-content"></div>
+    </div>
+  </div>
 
   <script type="module" src="src/sheet2midi-main.js"></script>
 </body>

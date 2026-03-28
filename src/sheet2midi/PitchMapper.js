@@ -49,21 +49,90 @@ export class PitchMapper {
   detectClef(symbols, staffGroup) {
     const topLine = staffGroup[0];
     const bottomLine = staffGroup[4];
+    const staffHeight = bottomLine - topLine;
+    const staffCenter = (topLine + bottomLine) / 2;
 
-    // Look for clef symbols in the leftmost portion of this staff
+    // Find the first note's x-position to define the clef search region
+    const noteTypes = new Set([
+      SymbolType.FILLED_NOTEHEAD, SymbolType.OPEN_NOTEHEAD, SymbolType.WHOLE_NOTE
+    ]);
+    let firstNoteX = Infinity;
     for (const s of symbols) {
-      if (s.type === SymbolType.CLEF_TREBLE) {
-        if (s.component.centroid.y >= topLine - 20 && s.component.centroid.y <= bottomLine + 20) {
-          return 'treble';
-        }
-      }
-      if (s.type === SymbolType.CLEF_BASS) {
-        if (s.component.centroid.y >= topLine - 20 && s.component.centroid.y <= bottomLine + 20) {
-          return 'bass';
-        }
+      if (!noteTypes.has(s.type)) continue;
+      const cy = s.component.centroid.y;
+      if (cy >= topLine - staffHeight && cy <= bottomLine + staffHeight) {
+        if (s.component.centroid.x < firstNoteX) firstNoteX = s.component.centroid.x;
       }
     }
+
+    // Look for explicitly classified clef symbols in the leftmost portion
+    const clefCandidates = [];
+    for (const s of symbols) {
+      if (s.type !== SymbolType.CLEF_TREBLE && s.type !== SymbolType.CLEF_BASS) continue;
+      const cy = s.component.centroid.y;
+      const cx = s.component.centroid.x;
+      // Must be within vertical range of this staff and to the left of first note
+      if (cy >= topLine - staffHeight * 0.5 && cy <= bottomLine + staffHeight * 0.5
+          && cx < firstNoteX) {
+        clefCandidates.push(s);
+      }
+    }
+
+    if (clefCandidates.length > 0) {
+      // If we have explicit treble, use it
+      const treble = clefCandidates.find(s => s.type === SymbolType.CLEF_TREBLE);
+      if (treble) return 'treble';
+
+      // If classified as bass, double-check using positional heuristics:
+      // A treble clef's centroid sits near the middle/lower portion of the staff
+      // and it spans most of the staff height. A bass clef sits in the upper half.
+      const bass = clefCandidates.find(s => s.type === SymbolType.CLEF_BASS);
+      if (bass) {
+        const compHeight = bass.component.bbox.height;
+        const compCenterY = bass.component.centroid.y;
+        // If the "bass" component spans >= 60% of staff height, it's likely treble
+        if (compHeight >= staffHeight * 0.6) {
+          console.log(`[OMR] Clef reclassification: bass→treble (height ${compHeight} >= 60% of staff ${staffHeight})`);
+          return 'treble';
+        }
+        // If centroid is near the staff center or below, it's likely treble
+        // (bass clef centroid should be in the upper third of the staff)
+        if (compCenterY >= staffCenter - staffHeight * 0.1) {
+          console.log(`[OMR] Clef reclassification: bass→treble (centroid ${compCenterY.toFixed(0)} at/below staff center ${staffCenter.toFixed(0)})`);
+          return 'treble';
+        }
+        return 'bass';
+      }
+    }
+
+    // Fallback: look for any large component in the left portion of the staff
+    // that could be a clef but wasn't classified as one
+    let bestClefCandidate = null;
+    let bestClefX = Infinity;
+    for (const s of symbols) {
+      const c = s.component;
+      const cy = c.centroid.y;
+      const cx = c.centroid.x;
+      if (cx >= firstNoteX) continue;
+      if (cy < topLine - staffHeight * 0.5 || cy > bottomLine + staffHeight * 0.5) continue;
+      // Must be a substantial symbol (not a dot or tiny fragment)
+      if (c.heightSS < 2.0 || c.widthSS < 0.5) continue;
+      if (cx < bestClefX) {
+        bestClefX = cx;
+        bestClefCandidate = c;
+      }
+    }
+
+    if (bestClefCandidate) {
+      const compHeight = bestClefCandidate.bbox.height;
+      if (compHeight >= staffHeight * 0.5) {
+        console.log(`[OMR] Clef inferred as treble from large left component (height ${compHeight}, staff ${staffHeight})`);
+        return 'treble';
+      }
+    }
+
     // Default to treble for single-staff scores
+    console.log(`[OMR] Clef defaulting to treble (no clef symbol found)`);
     return 'treble';
   }
 
@@ -400,12 +469,20 @@ export class PitchMapper {
         noteName,
         octave,
         midiNote,
-        clef
+        clef,
+        x: s.component.centroid.x
       });
     }
 
     // Sort by x-position (left to right)
-    notes.sort((a, b) => a.symbol.component.centroid.x - b.symbol.component.centroid.x);
+    notes.sort((a, b) => a.x - b.x);
+
+    // Debug: log all assigned notes
+    for (const n of notes) {
+      const c = n.symbol.component;
+      const src = c._splitFrom ? 'SPLIT' : 'orig';
+      console.log(`[OMR] Note: ${n.noteName}${n.octave}(${n.midiNote}) staffPos=${n.staffPos} clef=${n.clef} x=${Math.round(n.x)} y=${Math.round(c.centroid.y)} bbox=${c.bbox.x},${c.bbox.y} ${c.bbox.width}x${c.bbox.height} wSS=${c.widthSS.toFixed(2)} hSS=${c.heightSS.toFixed(2)} [${src}]`);
+    }
 
     // Detect key signature per staff group and apply accidentals
     const mergedKeySig = { sharps: new Set(), flats: new Set() };
@@ -437,7 +514,7 @@ export class PitchMapper {
    * @returns {number[]|null}
    */
   _findStaffGroup(y, staffGroups, staffSpace) {
-    const margin = staffSpace * 3; // allow notes above/below staff
+    const margin = staffSpace * 2; // allow notes 2 spaces above/below staff (ledger lines)
     let bestGroup = null;
     let bestDist = Infinity;
 

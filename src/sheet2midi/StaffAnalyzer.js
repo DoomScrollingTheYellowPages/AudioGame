@@ -118,7 +118,7 @@ export class StaffAnalyzer {
    * @returns {{groups: number[][], staffSpace: number}}
    */
   groupStaffLines(rows) {
-    if (rows.length < STAFF_LINES_PER_GROUP) {
+    if (rows.length < STAFF_LINES_PER_GROUP - 1) {
       return { groups: [], staffSpace: 0 };
     }
 
@@ -145,17 +145,37 @@ export class StaffAnalyzer {
       if (gap < staffSpace * 1.8) {
         currentGroup.push(rows[i]);
       } else {
-        if (currentGroup.length === STAFF_LINES_PER_GROUP) {
-          groups.push(currentGroup);
-        }
+        const completed = this._completeGroup(currentGroup, staffSpace);
+        if (completed) groups.push(completed);
         currentGroup = [rows[i]];
       }
     }
-    if (currentGroup.length === STAFF_LINES_PER_GROUP) {
-      groups.push(currentGroup);
-    }
+    const completed = this._completeGroup(currentGroup, staffSpace);
+    if (completed) groups.push(completed);
 
     return { groups, staffSpace };
+  }
+
+  /**
+   * Accept a group of 5 lines as-is, or extrapolate a missing line if exactly 4
+   * are present with consistent spacing.
+   * @param {number[]} group
+   * @param {number} staffSpace
+   * @returns {number[]|null}
+   */
+  _completeGroup(group, staffSpace) {
+    if (group.length === STAFF_LINES_PER_GROUP) return group;
+    if (group.length !== STAFF_LINES_PER_GROUP - 1) return null;
+
+    // Check that the 4 lines have consistent spacing
+    for (let i = 1; i < group.length; i++) {
+      if (Math.abs((group[i] - group[i - 1]) - staffSpace) > 2) return null;
+    }
+
+    // Extrapolate: prefer adding above (staff top often cropped), else below
+    const above = group[0] - staffSpace;
+    if (above >= 0) return [above, ...group];
+    return [...group, group[group.length - 1] + staffSpace];
   }
 
   /**

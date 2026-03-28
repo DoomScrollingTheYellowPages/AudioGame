@@ -365,17 +365,27 @@ export class ImageProcessor {
       if (hasContent) { rightCol = gx; break; }
     }
 
+    // Add 1-row margin on each side to preserve ledger lines and
+    // notes that extend slightly beyond the detected content bounds
+    topRow = Math.max(0, topRow - 1);
+    bottomRow = Math.min(gridSize - 1, bottomRow + 1);
+    leftCol = Math.max(0, leftCol - 1);
+    rightCol = Math.min(gridSize - 1, rightCol + 1);
+
     // If no significant trimming, return original
     if (topRow === 0 && bottomRow === gridSize - 1
         && leftCol === 0 && rightCol === gridSize - 1) {
       return { gray, width, height, offsetX: 0, offsetY: 0 };
     }
 
-    // Extract cropped region
+    // Extract cropped region — extend to image edge for outermost cells
+    console.log(`[OMR] cropBorders: grid=${gridSize} cell=${cellW}×${cellH} rows=${topRow}..${bottomRow} cols=${leftCol}..${rightCol}`);
     const cropX = leftCol * cellW;
     const cropY = topRow * cellH;
-    const cropW = Math.min((rightCol + 1) * cellW, width) - cropX;
-    const cropH = Math.min((bottomRow + 1) * cellH, height) - cropY;
+    const cropRight = rightCol >= gridSize - 1 ? width : (rightCol + 1) * cellW;
+    const cropBottom = bottomRow >= gridSize - 1 ? height : (bottomRow + 1) * cellH;
+    const cropW = cropRight - cropX;
+    const cropH = cropBottom - cropY;
 
     const cropped = new Uint8Array(cropW * cropH);
     for (let y = 0; y < cropH; y++) {
@@ -385,6 +395,49 @@ export class ImageProcessor {
     }
 
     return { gray: cropped, width: cropW, height: cropH, offsetX: cropX, offsetY: cropY };
+  }
+
+  /**
+   * Upscale a grayscale image using bilinear interpolation.
+   * @param {Uint8Array} gray
+   * @param {number} width
+   * @param {number} height
+   * @param {number} factor - integer scale factor (2, 3, 4, etc.)
+   * @returns {{gray: Uint8Array, width: number, height: number}}
+   */
+  upscale(gray, width, height, factor) {
+    const nw = width * factor;
+    const nh = height * factor;
+    const out = new Uint8Array(nw * nh);
+
+    for (let y = 0; y < nh; y++) {
+      const srcY = y / factor;
+      const y0 = Math.floor(srcY);
+      const y1 = Math.min(y0 + 1, height - 1);
+      const fy = srcY - y0;
+
+      for (let x = 0; x < nw; x++) {
+        const srcX = x / factor;
+        const x0 = Math.floor(srcX);
+        const x1 = Math.min(x0 + 1, width - 1);
+        const fx = srcX - x0;
+
+        // Bilinear interpolation
+        const v00 = gray[y0 * width + x0];
+        const v10 = gray[y0 * width + x1];
+        const v01 = gray[y1 * width + x0];
+        const v11 = gray[y1 * width + x1];
+
+        const v = (1 - fx) * (1 - fy) * v00
+          + fx * (1 - fy) * v10
+          + (1 - fx) * fy * v01
+          + fx * fy * v11;
+
+        out[y * nw + x] = Math.round(v);
+      }
+    }
+
+    return { gray: out, width: nw, height: nh };
   }
 
   /** @param {Uint8Array} img @param {number} w @param {number} h @param {number} r */

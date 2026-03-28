@@ -170,6 +170,15 @@ async function selectFile(file) {
   processBtn.disabled = false;
 }
 
+// ── Clipboard Paste ────────────────────────────
+
+document.addEventListener('paste', (e) => {
+  const item = [...e.clipboardData.items].find(i => i.type.startsWith('image/'));
+  if (!item) return;
+  const file = item.getAsFile();
+  if (file) selectFile(file);
+});
+
 // ── Page Navigation ─────────────────────────────
 
 prevPageBtn.addEventListener('click', async () => {
@@ -226,6 +235,9 @@ processBtn.addEventListener('click', async () => {
     resultsArea.classList.add('active');
     progressArea.classList.remove('active');
 
+    // Debug display
+    renderDebugResults(result, selectedFile?.name || '');
+
     // Show corrections
     if (result.corrections.length > 0) {
       correctionsList.innerHTML = result.corrections
@@ -251,6 +263,125 @@ bus.on('omr:progress', ({ stage, name }) => {
 });
 
 // ── MIDI Download ──────────────────────────────
+
+// ── Debug Panel ─────────────────────────────
+
+const debugToggle = document.getElementById('debug-toggle');
+const loadTestBtn = document.getElementById('load-test-btn');
+const debugResults = document.getElementById('debug-results');
+const debugContent = document.getElementById('debug-content');
+
+// Expected results for test images
+const TEST_EXPECTED = {
+  'CMajorScale.png': {
+    notes: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'],
+    midi: [60, 62, 64, 65, 67, 69, 71, 72],
+    clef: 'treble',
+    staves: 1
+  }
+};
+
+debugToggle.addEventListener('change', () => {
+  loadTestBtn.style.display = debugToggle.checked ? 'inline-block' : 'none';
+  if (!debugToggle.checked) debugResults.classList.remove('active');
+});
+
+loadTestBtn.addEventListener('click', async () => {
+  try {
+    const resp = await fetch('TestableObjects/CMajorScale.png');
+    if (!resp.ok) throw new Error(`Failed to load test image: ${resp.status}`);
+    const blob = await resp.blob();
+    const file = new File([blob], 'CMajorScale.png', { type: 'image/png' });
+    selectFile(file);
+  } catch (err) {
+    errorMsg.textContent = err.message;
+    errorMsg.classList.add('active');
+  }
+});
+
+/** @param {object} result - from engine.process() */
+function renderDebugResults(result, fileName) {
+  if (!debugToggle.checked) return;
+
+  const expected = TEST_EXPECTED[fileName];
+  const notes = result.notes.filter(n => n.midiNote > 0);
+
+  let html = '';
+
+  // Staff info
+  html += '<h4>Staff Detection</h4>';
+  html += `<p>Groups: ${result.staffInfo.groups.length}, staffSpace: ${result.staffInfo.staffSpace}px, lineThick: ${result.staffInfo.lineThickness}px</p>`;
+
+  // Notes table
+  html += '<h4>Detected Notes</h4>';
+  if (expected) {
+    html += `<p class="debug-expected">Expected: ${expected.notes.join(', ')} (MIDI: ${expected.midi.join(', ')})</p>`;
+  }
+  html += '<table><tr><th>#</th><th>Name</th><th>Oct</th><th>MIDI</th><th>Clef</th><th>StaffPos</th><th>X</th><th>Match</th></tr>';
+  for (let i = 0; i < notes.length; i++) {
+    const n = notes[i];
+    const detected = `${n.noteName}${n.octave}`;
+    let matchClass = '';
+    let matchText = '';
+    if (expected && i < expected.notes.length) {
+      const isMatch = detected === expected.notes[i] && n.midiNote === expected.midi[i];
+      matchClass = isMatch ? 'match' : 'mismatch';
+      matchText = isMatch ? 'OK' : `exp ${expected.notes[i]}(${expected.midi[i]})`;
+    }
+    html += `<tr>`;
+    html += `<td>${i + 1}</td>`;
+    html += `<td>${n.noteName}</td>`;
+    html += `<td>${n.octave}</td>`;
+    html += `<td>${n.midiNote}</td>`;
+    html += `<td>${n.clef}</td>`;
+    html += `<td>${n.staffPos}</td>`;
+    html += `<td>${Math.round(n.symbol.component.centroid.x)}</td>`;
+    html += `<td class="${matchClass}">${matchText}</td>`;
+    html += `</tr>`;
+  }
+  html += '</table>';
+
+  // Summary
+  const noteCount = notes.length;
+  const expectedCount = expected ? expected.notes.length : '?';
+  let correctCount = 0;
+  if (expected) {
+    for (let i = 0; i < Math.min(notes.length, expected.notes.length); i++) {
+      if (`${notes[i].noteName}${notes[i].octave}` === expected.notes[i]
+          && notes[i].midiNote === expected.midi[i]) {
+        correctCount++;
+      }
+    }
+  }
+  html += '<h4>Summary</h4>';
+  html += `<p>Notes: ${noteCount}/${expectedCount}`;
+  if (expected) {
+    const pct = expectedCount > 0 ? Math.round(correctCount / expectedCount * 100) : 0;
+    html += ` | Correct: <span class="${pct === 100 ? 'match' : 'mismatch'}">${correctCount}/${expectedCount} (${pct}%)</span>`;
+  }
+  html += '</p>';
+
+  // Symbols breakdown
+  html += '<h4>All Symbols</h4>';
+  const typeCounts = {};
+  for (const s of result.symbols) typeCounts[s.type] = (typeCounts[s.type] || 0) + 1;
+  html += '<table><tr><th>Type</th><th>Count</th></tr>';
+  for (const [type, count] of Object.entries(typeCounts).sort()) {
+    html += `<tr><td>${type}</td><td>${count}</td></tr>`;
+  }
+  html += '</table>';
+
+  // Corrections
+  if (result.corrections.length > 0) {
+    html += '<h4>Corrections</h4>';
+    for (const c of result.corrections) html += `<p>${c}</p>`;
+  }
+
+  debugContent.innerHTML = html;
+  debugResults.classList.add('active');
+}
+
+// ── MIDI Download ──────────────────────────
 
 downloadBtn.addEventListener('click', () => {
   if (!lastMidiBuffer) return;

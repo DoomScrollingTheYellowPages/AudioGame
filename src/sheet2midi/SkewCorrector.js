@@ -94,16 +94,17 @@ export class SkewCorrector {
       if (accumulator[i] > globalMax) globalMax = accumulator[i];
     }
 
+    // For each theta, find the single strongest rho peak
     const thetaVotes = new Float64Array(THETA_STEPS);
     for (let ti = 0; ti < THETA_STEPS; ti++) {
+      let peak = 0;
       for (let ri = 0; ri < rhoSteps; ri++) {
         const v = accumulator[ti * rhoSteps + ri];
-        if (v > globalMax * peakThreshold) {
-          thetaVotes[ti] += v;
-        }
+        if (v > peak) peak = v;
       }
-      if (thetaVotes[ti] > bestSum) {
-        bestSum = thetaVotes[ti];
+      thetaVotes[ti] = peak;
+      if (peak > bestSum) {
+        bestSum = peak;
         bestTheta = ti;
       }
     }
@@ -190,7 +191,7 @@ export class SkewCorrector {
    */
   correct(binary, gray, width, height) {
     const angle = this.detectSkew(binary, width, height);
-    if (Math.abs(angle) < 0.002) {
+    if (Math.abs(angle) < 0.035) { // ~2° — ignore false positives on clean digital images
       return { data: new Uint8Array(gray), width, height, angle: 0 };
     }
     const rotated = this.rotate(gray, width, height, -angle);
