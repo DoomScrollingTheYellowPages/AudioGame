@@ -251,26 +251,41 @@ function _splitNoteStems(components, binary, imgWidth, imgHeight, staffSpace) {
     }
 
     for (const peak of peaks) {
-      const subBbox = { x: bb.x, y: peak.y, width: bb.width, height: peak.height };
-      let area = 0;
-      let sumX = 0;
-      let sumY = 0;
-      for (let y = subBbox.y; y < subBbox.y + subBbox.height && y < imgHeight; y++) {
-        for (let x = subBbox.x; x < subBbox.x + subBbox.width && x < imgWidth; x++) {
-          if (binary[y * imgWidth + x] === 0) { area++; sumX += x; sumY += y; }
+      let area = 0, sumX = 0, sumY = 0;
+      let tightMinX = bb.x + bb.width, tightMaxX = bb.x - 1;
+      for (let y = peak.y; y < peak.y + peak.height && y < imgHeight; y++) {
+        for (let x = bb.x; x < bb.x + bb.width && x < imgWidth; x++) {
+          if (binary[y * imgWidth + x] === 0) {
+            area++; sumX += x; sumY += y;
+            if (x < tightMinX) tightMinX = x;
+            if (x > tightMaxX) tightMaxX = x;
+          }
         }
       }
       if (area < 5) continue;
+      const centX = Math.round(sumX / area);
+      const rawW = tightMinX <= tightMaxX ? tightMaxX - tightMinX + 1 : bb.width;
+      const maxW = Math.round(staffSpace * 1.8);
+      const tightW = Math.min(rawW, maxW);
+      const subX = Math.max(0, centX - Math.floor(tightW / 2));
+      const subBbox = { x: subX, y: peak.y, width: tightW, height: peak.height };
+      let subArea = 0, subSumX = 0, subSumY = 0;
+      for (let y = subBbox.y; y < subBbox.y + subBbox.height && y < imgHeight; y++) {
+        for (let x = subBbox.x; x < subBbox.x + subBbox.width && x < imgWidth; x++) {
+          if (binary[y * imgWidth + x] === 0) { subArea++; subSumX += x; subSumY += y; }
+        }
+      }
+      if (subArea < 5) continue;
       result.push({
         label: comp.label,
         bbox: subBbox,
-        centroid: { x: sumX / area, y: sumY / area },
-        area,
-        fillRatio: area / (subBbox.width * subBbox.height),
-        aspectRatio: subBbox.width / subBbox.height,
+        centroid: { x: subSumX / subArea, y: subSumY / subArea },
+        area: subArea,
+        fillRatio: subArea / (tightW * peak.height),
+        aspectRatio: tightW / peak.height,
         holes: 0,
-        widthSS: subBbox.width / staffSpace,
-        heightSS: subBbox.height / staffSpace,
+        widthSS: tightW / staffSpace,
+        heightSS: peak.height / staffSpace,
         _splitFrom: true
       });
     }

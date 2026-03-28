@@ -12,6 +12,7 @@
     { "note": 55, "name": "G3", "beats": 1, "track": 2 },
     { "note": 57, "name": "A3", "beats": 1, "track": 2 },
     { "note": 59, "name": "B3", "beats": 1, "track": 2 },
+    { "note": 60, "name": "C4", "beats": 1, "track": 1 },
     { "note": 62, "name": "D4", "beats": 1, "track": 1 },
     { "note": 64, "name": "E4", "beats": 1, "track": 1 },
     { "note": 65, "name": "F4", "beats": 1, "track": 1 },
@@ -24,5 +25,5 @@
     { "note": 77, "name": "F5", "beats": 1, "track": 1 }
   ],
   "bars": 1,
-  "totalBeats": 20
+  "totalBeats": 21
 }

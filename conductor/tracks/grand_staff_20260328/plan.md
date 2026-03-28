@@ -11,7 +11,7 @@
   - [x] Add `BRACE` to `SymbolType`
   - [x] Add rule to `classify()` with the specified feature thresholds
   - [x] Confirm test goes green
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Brace Symbol Detection' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Brace Symbol Detection' (Protocol in workflow.md)
 
 ## Phase 2: Grand Staff Pair Detection
 
@@ -29,7 +29,7 @@
   - [x] Brace match sets upper=treble, lower=bass and skips remaining methods
   - [x] Update `assignPitches` call site to pass `symbols` to `_buildClefMap`
   - [x] Confirm all tests green
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Grand Staff Pair Detection' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Grand Staff Pair Detection' (Protocol in workflow.md)
 
 ## Phase 3: Multi-Track MIDI Output
 
@@ -48,7 +48,7 @@
   - [x] Split notes by clef: treble notes → track 1, bass notes → track 2
   - [x] Pass both arrays to `MidiWriter.buildMultiTrack`
   - [x] Single-staff path unchanged
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Multi-Track MIDI Output' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Multi-Track MIDI Output' (Protocol in workflow.md)
 
 ## Phase 4: UI — Grand Staff Default
 
@@ -64,7 +64,7 @@
   - [x] When `options.clef === 'grand'`, clefOverride=null and grandStaffMode=true
   - [x] When `options.clef` is `'treble'` or `'bass'`, override as before (disables pairing)
   - [x] When `options.clef` is `null`/`''`, single-staff NCC detection (grandStaffMode=false)
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: UI — Grand Staff Default' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: UI — Grand Staff Default' (Protocol in workflow.md)
 
 ## Phase 5: Test Fixtures and Validation
 
@@ -81,5 +81,7 @@
 - [x] Task: Tune and verify pipeline passes both fixtures
   - [x] Run `node --test test/sheet2midi/omr-validation.test.js`
   - [x] Clef-region filter (x < 4×staffSpace) eliminates false positives; no threshold tuning needed
-  - [x] All 4 fixtures (CMajorScale, AMinorScale, BassStaffScale + grandstaffmono1) pass — 141 tests total
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: Test Fixtures and Validation' (Protocol in workflow.md)
+  - [x] All 4 fixtures (CMajorScale, AMinorScale, BassStaffScale + grandstaffmono1) pass — 25 tests total
+  - [x] C4 (middle C) inter-staff detection fixed: pre-compute inter-staff zone before main loop to prevent bass staff from claiming the notehead
+  - [x] Fixture updated to 21 notes (added C4 midi=60 track=1 between B3 and D4)
+- [x] Task: Conductor - User Manual Verification 'Phase 5: Test Fixtures and Validation' (Protocol in workflow.md)

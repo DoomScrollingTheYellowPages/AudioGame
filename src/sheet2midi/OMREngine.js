@@ -443,41 +443,61 @@ export class OMREngine {
 
       // Create synthetic notehead components from each peak
       for (const peak of peaks) {
-        // Use the full peak region — the density threshold already
-        // ensures only notehead-dense rows are included
-        const subBbox = {
-          x: bb.x,
-          y: peak.y,
-          width: bb.width,
-          height: peak.height
-        };
-
-        // Compute area, x-centroid, and y-centroid (centre of mass) within the sub-bbox
+        // First pass: scan peak rows to get area, centroid, and tight x-extent
         let area = 0;
         let sumX = 0;
         let sumY = 0;
-        for (let y = subBbox.y; y < subBbox.y + subBbox.height && y < imgHeight; y++) {
-          for (let x = subBbox.x; x < subBbox.x + subBbox.width && x < imgWidth; x++) {
+        let tightMinX = bb.x + bb.width;
+        let tightMaxX = bb.x - 1;
+        for (let y = peak.y; y < peak.y + peak.height && y < imgHeight; y++) {
+          for (let x = bb.x; x < bb.x + bb.width && x < imgWidth; x++) {
             if (binary[y * imgWidth + x] === 0) {
               area++;
               sumX += x;
               sumY += y;
+              if (x < tightMinX) tightMinX = x;
+              if (x > tightMaxX) tightMaxX = x;
             }
           }
         }
 
         if (area < 5) continue;
 
+        // Clamp sub-bbox width to prevent ledger lines from artificially
+        // widening the component — cap at 1.8× staffSpace centered on x-centroid
+        const centX = Math.round(sumX / area);
+        const rawW = tightMinX <= tightMaxX ? tightMaxX - tightMinX + 1 : bb.width;
+        const maxW = Math.round(staffSpace * 1.8);
+        const tightW = Math.min(rawW, maxW);
+        const subX = Math.max(0, centX - Math.floor(tightW / 2));
+        const subBbox = { x: subX, y: peak.y, width: tightW, height: peak.height };
+
+        // Second pass: recount within clamped bbox for accurate fillRatio
+        let subArea = 0;
+        let subSumX = 0;
+        let subSumY = 0;
+        for (let y = subBbox.y; y < subBbox.y + subBbox.height && y < imgHeight; y++) {
+          for (let x = subBbox.x; x < subBbox.x + subBbox.width && x < imgWidth; x++) {
+            if (binary[y * imgWidth + x] === 0) {
+              subArea++;
+              subSumX += x;
+              subSumY += y;
+            }
+          }
+        }
+
+        if (subArea < 5) continue;
+
         const subComp = {
           label: comp.label,
           bbox: subBbox,
-          centroid: { x: sumX / area, y: sumY / area },
-          area,
-          fillRatio: area / (subBbox.width * subBbox.height),
-          aspectRatio: subBbox.width / subBbox.height,
+          centroid: { x: subSumX / subArea, y: subSumY / subArea },
+          area: subArea,
+          fillRatio: subArea / (tightW * peak.height),
+          aspectRatio: tightW / peak.height,
           holes: 0,
-          widthSS: subBbox.width / staffSpace,
-          heightSS: subBbox.height / staffSpace,
+          widthSS: tightW / staffSpace,
+          heightSS: peak.height / staffSpace,
           _splitFrom: true // marker for debugging
         };
 

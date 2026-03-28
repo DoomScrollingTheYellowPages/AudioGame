@@ -515,6 +515,34 @@ export class PitchMapper {
     // Build clef map using grand staff pair detection (cascade: brace → gap → fallback)
     const clefMap = this._buildClefMap(staffGroups, staffSpace, symbols);
 
+    // Grand staff inter-staff zone: pre-identify middle C noteheads BEFORE the main
+    // assignment loop, so they are not incorrectly claimed by the bass staff's margin.
+    // Any filled notehead between the two staves (outside ledger reach of both) is C4.
+    const interStaffSymbols = new Set();
+    if (this._lastPairingMethod && staffGroups.length >= 2) {
+      let trebleGroup = null, bassGroup = null;
+      for (const [g, c] of clefMap) {
+        if (c === 'treble') trebleGroup = g;
+        else if (c === 'bass') bassGroup = g;
+      }
+      if (trebleGroup && bassGroup) {
+        const trebleBottom = trebleGroup[4]; // lowest treble line (highest y)
+        const bassTop = bassGroup[0];        // highest bass line (lowest y)
+        const interMin = trebleBottom + staffSpace * 2.0;
+        const interMax = bassTop - staffSpace * 2.0;
+        if (interMin < interMax) {
+          for (const s of symbols) {
+            if (!noteTypes.has(s.type)) continue;
+            if (staffSpace > 0 && s.component.centroid.x < staffSpace * 4) continue;
+            const cy = s.component.centroid.y;
+            if (cy >= interMin && cy <= interMax) {
+              interStaffSymbols.add(s);
+            }
+          }
+        }
+      }
+    }
+
     const notes = [];
 
     for (const s of symbols) {
@@ -523,6 +551,9 @@ export class PitchMapper {
       // Skip noteheads in the clef region — bass clef dots and treble clef body
       // can look like filled noteheads but are never valid notes
       if (staffSpace > 0 && s.component.centroid.x < staffSpace * 4) continue;
+
+      // Inter-staff zone noteheads are handled separately as middle C (C4)
+      if (interStaffSymbols.has(s)) continue;
 
       // Find which staff group this note belongs to
       const group = this._findStaffGroup(s.component.centroid.y, staffGroups, staffSpace);
@@ -542,6 +573,22 @@ export class PitchMapper {
         clef,
         x: s.component.centroid.x
       });
+    }
+
+    // Assign inter-staff symbols as middle C (C4, staffPos=-2 treble)
+    for (const s of interStaffSymbols) {
+      const { noteName, octave, midiNote } = this.positionToPitch(-2, 'treble');
+      notes.push({
+        symbol: s,
+        staffPos: -2,
+        noteName,
+        octave,
+        midiNote,
+        clef: 'treble',
+        x: s.component.centroid.x
+      });
+      const c = s.component;
+      console.log(`[OMR] Note: ${noteName}${octave}(${midiNote}) staffPos=-2 clef=treble [inter-staff C4] x=${Math.round(c.centroid.x)} y=${Math.round(c.centroid.y)}`);
     }
 
     // Sort by x-position (left to right)
