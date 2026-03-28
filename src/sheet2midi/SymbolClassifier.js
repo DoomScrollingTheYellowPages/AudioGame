@@ -31,6 +31,7 @@ export const SymbolType = {
 // ── Classification Rules ───────────────────────
 
 const RULES = [
+  // ── Tiny symbols (check first to avoid confusion) ──
   {
     type: SymbolType.DOT,
     test: (c) => c.aspectRatio > 0.7 && c.aspectRatio < 1.4
@@ -38,9 +39,48 @@ const RULES = [
       && c.widthSS > 0.15 && c.widthSS < 0.5
       && c.heightSS > 0.15 && c.heightSS < 0.5
   },
+  // ── Clefs (check early — tall, distinctive shapes) ──
+  {
+    type: SymbolType.CLEF_TREBLE,
+    test: (c) => c.heightSS >= 3.0
+      && c.widthSS >= 0.8 && c.widthSS <= 4.0
+      && c.aspectRatio >= 0.15 && c.aspectRatio <= 0.7
+      && c.fillRatio >= 0.2 && c.fillRatio <= 0.7
+  },
+  {
+    type: SymbolType.CLEF_BASS,
+    test: (c) => c.heightSS >= 1.5 && c.heightSS <= 3.5
+      && c.widthSS >= 0.8 && c.widthSS <= 3.0
+      && c.aspectRatio >= 0.6 && c.aspectRatio <= 1.5
+      && c.fillRatio >= 0.3
+  },
+  // ── Tall thin symbols ──
+  {
+    type: SymbolType.BAR_LINE,
+    test: (c) => c.aspectRatio >= 0.01 && c.aspectRatio <= 0.18
+      && c.fillRatio > 0.75
+      && c.widthSS >= 0.05 && c.widthSS <= 0.35
+      && c.heightSS >= 3.5
+  },
+  {
+    type: SymbolType.STEM,
+    test: (c) => c.aspectRatio >= 0.03 && c.aspectRatio <= 0.3
+      && c.fillRatio > 0.7
+      && c.widthSS >= 0.05 && c.widthSS <= 0.4
+      && c.heightSS >= 2.0
+  },
+  // ── Wide symbols ──
+  {
+    type: SymbolType.BEAM,
+    test: (c) => c.aspectRatio > 2.5
+      && c.fillRatio > 0.6
+      && c.heightSS >= 0.2 && c.heightSS <= 0.7
+      && c.widthSS > 1.5
+  },
+  // ── Noteheads ──
   {
     type: SymbolType.FILLED_NOTEHEAD,
-    test: (c) => c.aspectRatio >= 0.7 && c.aspectRatio <= 2.0
+    test: (c) => c.aspectRatio >= 0.7 && c.aspectRatio <= 2.5
       && c.fillRatio > 0.55
       && c.widthSS >= 0.4 && c.widthSS <= 2.0
       && c.heightSS >= 0.3 && c.heightSS <= 1.8
@@ -62,27 +102,7 @@ const RULES = [
       && c.heightSS >= 0.6 && c.heightSS <= 1.5
       && c.holes >= 1
   },
-  {
-    type: SymbolType.STEM,
-    test: (c) => c.aspectRatio >= 0.03 && c.aspectRatio <= 0.3
-      && c.fillRatio > 0.7
-      && c.widthSS >= 0.05 && c.widthSS <= 0.4
-      && c.heightSS >= 2.0
-  },
-  {
-    type: SymbolType.BEAM,
-    test: (c) => c.aspectRatio > 2.5
-      && c.fillRatio > 0.6
-      && c.heightSS >= 0.2 && c.heightSS <= 0.7
-      && c.widthSS > 1.5
-  },
-  {
-    type: SymbolType.BAR_LINE,
-    test: (c) => c.aspectRatio >= 0.01 && c.aspectRatio <= 0.18
-      && c.fillRatio > 0.75
-      && c.widthSS >= 0.05 && c.widthSS <= 0.35
-      && c.heightSS >= 3.5
-  },
+  // ── Rests & flags ──
   {
     type: SymbolType.REST_QUARTER,
     test: (c) => c.aspectRatio >= 0.25 && c.aspectRatio <= 0.85
@@ -96,19 +116,6 @@ const RULES = [
       && c.fillRatio >= 0.3 && c.fillRatio <= 0.7
       && c.widthSS >= 0.4 && c.widthSS <= 1.2
       && c.heightSS >= 1.0 && c.heightSS <= 2.5
-  },
-  {
-    type: SymbolType.CLEF_TREBLE,
-    test: (c) => c.heightSS >= 5.5
-      && c.widthSS >= 1.2 && c.widthSS <= 3.0
-      && c.aspectRatio >= 0.25 && c.aspectRatio <= 0.55
-      && c.fillRatio >= 0.3 && c.fillRatio <= 0.6
-  },
-  {
-    type: SymbolType.CLEF_BASS,
-    test: (c) => c.heightSS >= 2.0 && c.heightSS <= 4.5
-      && c.widthSS >= 1.0 && c.widthSS <= 3.0
-      && c.aspectRatio >= 0.5 && c.aspectRatio <= 1.2
   },
   // ── Accidentals ──────────────────────────────
   // Sharp: tall vertical strokes with horizontal cross-bars, narrow-ish
@@ -171,6 +178,13 @@ export class SymbolClassifier {
       // Confidence based on how well it matches center of expected ranges
       const confidence = type !== SymbolType.UNKNOWN ? this._computeConfidence(c, type) : 0;
       results.push({ component: c, type, confidence });
+
+      // Debug: log clef candidates and large components that might be clefs
+      if (type === SymbolType.CLEF_TREBLE || type === SymbolType.CLEF_BASS
+        || (c.heightSS >= 2.5 && c.widthSS >= 0.8 && c.widthSS <= 4.0
+            && c.aspectRatio < 1.0)) {
+        console.log(`[OMR] Clef candidate: type=${type} hSS=${c.heightSS.toFixed(2)} wSS=${c.widthSS.toFixed(2)} ar=${c.aspectRatio.toFixed(3)} fill=${c.fillRatio.toFixed(3)} holes=${c.holes} bbox=${c.bbox.x},${c.bbox.y} ${c.bbox.width}x${c.bbox.height}`);
+      }
     }
 
     this._bus.emit('omr:symbols', { symbols: results });

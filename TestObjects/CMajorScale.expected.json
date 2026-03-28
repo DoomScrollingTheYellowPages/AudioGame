@@ -1,0 +1,15 @@
+{
+  "image": "CMajorScale.png",
+  "bars": 2,
+  "totalBeats": 8,
+  "notes": [
+    { "note": 60, "name": "C4", "beats": 1 },
+    { "note": 62, "name": "D4", "beats": 1 },
+    { "note": 64, "name": "E4", "beats": 1 },
+    { "note": 65, "name": "F4", "beats": 1 },
+    { "note": 67, "name": "G4", "beats": 1 },
+    { "note": 69, "name": "A4", "beats": 1 },
+    { "note": 71, "name": "B4", "beats": 1 },
+    { "note": 72, "name": "C5", "beats": 1 }
+  ]
+}

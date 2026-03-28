@@ -47,8 +47,7 @@ export class OMREngine {
     this._bus.emit('omr:progress', { stage: 1, name: 'Loading image' });
     let { gray, width, height } = await this._imageProcessor.load(file);
 
-    // Stage 1.5: Preprocessing — median filter + border cropping
-    gray = this._imageProcessor.medianFilter(gray, width, height);
+    // Stage 1.5: Preprocessing — border cropping only (median filter applied later)
     const cropped = this._imageProcessor.cropBorders(gray, width, height);
     if (cropped.offsetX > 0 || cropped.offsetY > 0) {
       console.log(`[OMR] Cropped borders: offset=(${cropped.offsetX},${cropped.offsetY}) size=${cropped.width}×${cropped.height} (was ${width}×${height})`);
@@ -57,16 +56,36 @@ export class OMREngine {
       height = cropped.height;
     }
 
+    // Stage 1.8: Auto-upscale small images for reliable feature detection
+    let wasUpscaled = false;
+    if (height < 200) {
+      const factor = Math.min(Math.ceil(200 / height), 3);
+      console.log(`[OMR] Auto-upscaling ${width}×${height} by ${factor}× → ${width * factor}×${height * factor}`);
+      const upscaled = this._upscaleGray(gray, width, height, factor);
+      gray = upscaled.gray;
+      width = upscaled.width;
+      height = upscaled.height;
+      wasUpscaled = true;
+    }
+
     // Stage 2: Binarization
     this._bus.emit('omr:progress', { stage: 2, name: 'Binarizing' });
-    const binary = this._imageProcessor.binarize(gray, width, height);
+const binary = this._imageProcessor.binarize(gray, width, height);
     this._bus.emit('omr:preprocessed', { width, height });
 
-    // Stage 3: Skew correction
+    // Stage 3: Skew correction (skip for upscaled digital images)
     this._bus.emit('omr:progress', { stage: 3, name: 'Correcting skew' });
-    const { data: correctedGray, angle } = this._skewCorrector.correct(
-      binary, gray, width, height
-    );
+    let correctedGray, angle;
+    if (wasUpscaled) {
+      // Clean digital images don't need skew correction
+      correctedGray = new Uint8Array(gray);
+      angle = 0;
+      console.log(`[OMR] Skipping skew correction (upscaled digital image)`);
+    } else {
+      const result = this._skewCorrector.correct(binary, gray, width, height);
+      correctedGray = result.data;
+      angle = result.angle;
+    }
     // Re-binarize corrected image if it was rotated
     const correctedBinary = Math.abs(angle) > 0.002
       ? this._imageProcessor.binarize(correctedGray, width, height)
@@ -89,7 +108,8 @@ export class OMREngine {
       correctedBinary, width, height, staffRows, lineThickness
     );
 
-    // Morphological repair
+    // Noise removal + morphological repair
+    cleaned = this._imageProcessor.medianFilter(cleaned, width, height);
     cleaned = this._imageProcessor.morphClose(cleaned, width, height,
       Math.ceil(lineThickness / 2) + 1);
 
@@ -100,6 +120,30 @@ export class OMREngine {
       labels, width, height, count, staffSpace
     );
     console.log(`[OMR] Stage 6: ${count} raw labels, ${components.length} components after filtering`);
+
+    // DEBUG: dump rightmost components to trace C5
+    const rightEdge = width * 0.75;
+    const rightComps = components
+      .filter(c => c.centroid.x >= rightEdge)
+      .sort((a, b) => a.centroid.x - b.centroid.x);
+    console.log(`[OMR] DEBUG right-edge (x>=${Math.round(rightEdge)}): ${rightComps.length} components`);
+    for (const c of rightComps) {
+      console.log(`  x=${Math.round(c.centroid.x)} y=${Math.round(c.centroid.y)} bbox=${c.bbox.x},${c.bbox.y} ${c.bbox.width}x${c.bbox.height} wSS=${c.widthSS.toFixed(2)} hSS=${c.heightSS.toFixed(2)} ar=${c.aspectRatio.toFixed(2)} fill=${c.fillRatio.toFixed(2)} area=${c.area}`);
+    }
+
+    // DEBUG: scan rightmost 20% of binary image for any black pixels
+    const scanStartX = Math.floor(width * 0.85);
+    let blackPixelCount = 0;
+    let rightmostBlack = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = scanStartX; x < width; x++) {
+        if (correctedBinary[y * width + x] === 0) {
+          blackPixelCount++;
+          if (x > rightmostBlack) rightmostBlack = x;
+        }
+      }
+    }
+    console.log(`[OMR] DEBUG: black pixels in rightmost 15%: ${blackPixelCount}, rightmost black pixel at x=${rightmostBlack}/${width}`);
 
     // Stage 6.5: Split note+stem combos — extract noteheads from tall components
     const splitComponents = this._splitNoteStems(components, correctedBinary, width, height, staffSpace);
@@ -112,6 +156,16 @@ export class OMREngine {
     for (const s of symbols) typeCounts[s.type] = (typeCounts[s.type] || 0) + 1;
     console.log(`[OMR] Stage 7: ${symbols.length} symbols`, JSON.stringify(typeCounts));
 
+    // DEBUG: log rightmost classified symbols
+    const rightSymbols = symbols
+      .filter(s => s.component.centroid.x >= rightEdge)
+      .sort((a, b) => a.component.centroid.x - b.component.centroid.x);
+    console.log(`[OMR] DEBUG right-edge symbols after classification:`);
+    for (const s of rightSymbols) {
+      const c = s.component;
+      console.log(`  type=${s.type} x=${Math.round(c.centroid.x)} y=${Math.round(c.centroid.y)} wSS=${c.widthSS.toFixed(2)} hSS=${c.heightSS.toFixed(2)} ar=${c.aspectRatio.toFixed(2)} fill=${c.fillRatio.toFixed(2)} split=${!!c._splitFrom}`);
+    }
+
     // Log a sample of components that were classified as unknown to understand what's being missed
     const unknowns = symbols.filter(s => s.type === 'unknown');
     if (unknowns.length > 0) {
@@ -120,6 +174,23 @@ export class OMREngine {
         return `wSS=${c.widthSS.toFixed(2)} hSS=${c.heightSS.toFixed(2)} ar=${c.aspectRatio.toFixed(2)} fill=${c.fillRatio.toFixed(2)} holes=${c.holes} area=${c.area} bbox=${c.bbox.width}x${c.bbox.height}`;
       });
       console.log(`[OMR] ${unknowns.length} unknowns, sample:\n` + sample.join('\n'));
+    }
+
+    // Stage 7.5: Position-based clef filtering — only keep leftmost clef per staff
+    // Note+stem combos can look like clefs, so reclassify non-leftmost clefs
+    const clefSymbols = symbols.filter(s =>
+      s.type === 'clef_treble' || s.type === 'clef_bass'
+    );
+    if (clefSymbols.length > 1) {
+      // Find the leftmost clef per staff group
+      const leftmostX = Math.min(...clefSymbols.map(s => s.component.centroid.x));
+      const leftmostThreshold = leftmostX + staffSpace * 3;
+      for (const s of clefSymbols) {
+        if (s.component.centroid.x > leftmostThreshold) {
+          console.log(`[OMR] Reclassifying non-leftmost ${s.type} at x=${Math.round(s.component.centroid.x)} → unknown`);
+          s.type = 'unknown';
+        }
+      }
     }
 
     // Stage 8: Pitch assignment
@@ -199,15 +270,56 @@ export class OMREngine {
    * @param {number} staffSpace
    * @returns {Array}
    */
+  /**
+   * Upscale a grayscale image using bilinear interpolation.
+   * @param {Uint8Array} gray
+   * @param {number} width
+   * @param {number} height
+   * @param {number} factor
+   * @returns {{gray: Uint8Array, width: number, height: number}}
+   */
+  _upscaleGray(gray, width, height, factor) {
+    const nw = width * factor;
+    const nh = height * factor;
+    const out = new Uint8Array(nw * nh);
+    for (let y = 0; y < nh; y++) {
+      const srcY = y / factor;
+      const y0 = Math.floor(srcY);
+      const y1 = Math.min(y0 + 1, height - 1);
+      const fy = srcY - y0;
+      for (let x = 0; x < nw; x++) {
+        const srcX = x / factor;
+        const x0 = Math.floor(srcX);
+        const x1 = Math.min(x0 + 1, width - 1);
+        const fx = srcX - x0;
+        out[y * nw + x] = Math.round(
+          (1 - fx) * (1 - fy) * gray[y0 * width + x0]
+          + fx * (1 - fy) * gray[y0 * width + x1]
+          + (1 - fx) * fy * gray[y1 * width + x0]
+          + fx * fy * gray[y1 * width + x1]
+        );
+      }
+    }
+    return { gray: out, width: nw, height: nh };
+  }
+
   _splitNoteStems(components, binary, imgWidth, imgHeight, staffSpace) {
     const result = [...components];
     const noteH = Math.round(staffSpace * 0.9);  // expected notehead height
     const noteW = Math.round(staffSpace * 1.3);  // expected notehead width
     const minDensity = 0.45; // minimum fill ratio for a notehead band
 
+    // Find the clef region boundary — the actual clef symbol is typically
+    // in the leftmost ~3 staffSpaces. Use a fixed positional heuristic
+    // rather than relying on finding small notehead-like components.
+    const clefRegionEndX = staffSpace * 5;
+
     for (const comp of components) {
       // Only try splitting tall-ish components that aren't already small noteheads
       if (comp.heightSS < 1.5 || comp.widthSS > 5.0 || comp.widthSS < 0.3) continue;
+
+      // Skip components in the clef region (leftmost area)
+      if (comp.centroid.x < clefRegionEndX) continue;
 
       const bb = comp.bbox;
 
@@ -278,8 +390,14 @@ export class OMREngine {
         }
       }
 
+      if (peaks.length > 0) {
+        console.log(`[OMR] Split: comp at x=${Math.round(comp.centroid.x)} bbox=${bb.x},${bb.y} ${bb.width}x${bb.height} → ${peaks.length} peak(s): ${peaks.map(p => `y=${p.y} h=${p.height} maxD=${p.maxDensity.toFixed(2)}`).join(', ')}`);
+      }
+
       // Create synthetic notehead components from each peak
       for (const peak of peaks) {
+        // Use the full peak region — the density threshold already
+        // ensures only notehead-dense rows are included
         const subBbox = {
           x: bb.x,
           y: peak.y,
@@ -287,7 +405,7 @@ export class OMREngine {
           height: peak.height
         };
 
-        // Compute area within sub-bbox
+        // Compute area, x-centroid, and y-centroid (centre of mass) within the sub-bbox
         let area = 0;
         let sumX = 0;
         let sumY = 0;
