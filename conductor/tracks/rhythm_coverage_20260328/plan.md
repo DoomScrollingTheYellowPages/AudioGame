@@ -1,6 +1,6 @@
 # Plan: MidiParser & HitJudge Test Coverage
 
-## Phase 1: MidiParser Tests [checkpoint: ]
+## Phase 1: MidiParser Tests [checkpoint: 1eaf2b2]
 
 ### Task 1.1: Write failing MidiParser tests (Red) [x]
 Create `test/rhythm/MidiParser.test.js` with 10 tests covering:
@@ -22,9 +22,9 @@ Verify MidiParser uses only `DataView` and `ArrayBuffer` — no DOM/browser APIs
 Build a minimal helper `makeMidiBuffer(tracks, bpm)` in the test file.
 Ensure all 10 tests pass.
 
-### Task 1.3: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md) [ ]
+### Task 1.3: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md) [x]
 
-## Phase 2: HitJudge Tests [checkpoint: ]
+## Phase 2: HitJudge Tests [checkpoint: 1eaf2b2]
 
 ### Task 2.1: Write failing HitJudge tests (Red) [x]
 Create `test/rhythm/HitJudge.test.js` with 10 tests covering:
@@ -45,9 +45,9 @@ Run tests → confirm all fail (HitJudge requires engine mock).
 Build a minimal `MockEngine` that returns a fixed note list and current position.
 Ensure all 10 HitJudge tests pass.
 
-### Task 2.3: Conductor - User Manual Verification 'Phase 2' (Protocol in workflow.md) [ ]
+### Task 2.3: Conductor - User Manual Verification 'Phase 2' (Protocol in workflow.md) [x]
 
-## Phase 3: Synth Tests [checkpoint: ]
+## Phase 3: Synth Tests [checkpoint: 1eaf2b2]
 
 ### Task 3.1: Write Synth unit tests (Red) [x]
 Create `test/audio/Synth.test.js` with 4 tests:
@@ -61,4 +61,4 @@ Mock `window.AudioContext` → confirm tests fail first.
 Provide a lightweight `window.AudioContext` mock via globalThis in the test file.
 Ensure all 4 tests pass.
 
-### Task 3.3: Conductor - User Manual Verification 'Phase 3' (Protocol in workflow.md) [ ]
+### Task 3.3: Conductor - User Manual Verification 'Phase 3' (Protocol in workflow.md) [x]

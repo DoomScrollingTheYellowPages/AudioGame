@@ -49,7 +49,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: MidiParser & HitJudge Test Coverage
+## [x] Track: MidiParser & HitJudge Test Coverage
 *Link: [./conductor/tracks/rhythm_coverage_20260328/](./conductor/tracks/rhythm_coverage_20260328/)*
 
 
