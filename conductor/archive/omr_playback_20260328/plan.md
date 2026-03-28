@@ -1,6 +1,6 @@
 # Plan: OMR Playback Preview
 
-## Phase 1: OMRPlayer Module [checkpoint: pending]
+## Phase 1: OMRPlayer Module [checkpoint: eb1a26d]
 
 - [x] Task: Write failing tests for OMRPlayer
   - [x] Sub-task: Test midiToFreq(69) === 440
@@ -17,7 +17,7 @@
 
 - [x] Task: Conductor - User Manual Verification 'Phase 1: OMRPlayer Module' (Protocol in workflow.md)
 
-## Phase 2: UI Integration [checkpoint: pending]
+## Phase 2: UI Integration [checkpoint: eb1a26d]
 
 - [x] Task: Add Play button to sheet2midi.html
   - [x] Sub-task: Add `<button id="play-btn" disabled>&#9654; Play</button>` in results area

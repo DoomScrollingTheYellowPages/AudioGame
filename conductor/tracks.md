@@ -34,6 +34,6 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: OMR Playback Preview
+## [x] Track: OMR Playback Preview
 *Link: [./conductor/tracks/omr_playback_20260328/](./conductor/tracks/omr_playback_20260328/)*
 
