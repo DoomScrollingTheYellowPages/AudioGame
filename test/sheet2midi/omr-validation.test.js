@@ -37,6 +37,7 @@ const TEST_OBJECTS = resolve(REPO_ROOT, 'TestObjects');
  */
 function runPipeline(imagePath, options = {}) {
   const timeSig = options.timeSig ?? [4, 4];
+  const clefOverride = options.clef ?? null;
 
   const bus = new MockBus();
   const imageProcessor = new ImageProcessor(bus);
@@ -129,7 +130,7 @@ function runPipeline(imagePath, options = {}) {
 
   // Stage 8: Pitch assignment
   const pitchedNotes = pitchMapper.assignPitches(
-    symbols, groups, staffSpace, correctedBinary, width
+    symbols, groups, staffSpace, correctedBinary, width, clefOverride
   );
 
   // Stage 9: Duration assignment
@@ -290,7 +291,7 @@ function loadExpected(name) {
 function validateFixture(name) {
   const expected = loadExpected(name);
   const imagePath = resolve(TEST_OBJECTS, expected.image);
-  const result = runPipeline(imagePath);
+  const result = runPipeline(imagePath, { clef: expected.clef ?? null });
 
   it(`${name}: note count equals ${expected.notes.length}`, () => {
     assert.equal(result.notes.length, expected.notes.length,
@@ -338,4 +339,8 @@ describe('OMR Validation: CMajorScale', () => {
 
 describe('OMR Validation: AMinorScale', () => {
   validateFixture('AMinorScale');
+});
+
+describe('OMR Validation: BassStaffScale', () => {
+  validateFixture('BassStaffScale');
 });

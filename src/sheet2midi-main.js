@@ -44,6 +44,7 @@ const vizNext = document.getElementById('viz-next');
 const vizStepLabel = document.getElementById('viz-step-label');
 const vizStepCount = document.getElementById('viz-step-count');
 const vizLegend = document.getElementById('viz-legend');
+const clefSelect = document.getElementById('clef-select');
 
 // ── State ──────────────────────────────────────
 
@@ -231,7 +232,8 @@ processBtn.addEventListener('click', async () => {
 
     const result = await engine.process(sourceBlob, {
       bpm,
-      timeSig: [num, den]
+      timeSig: [num, den],
+      clef: clefSelect.value || null
     });
 
     lastMidiBuffer = result.midi;

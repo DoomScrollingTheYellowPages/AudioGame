@@ -1,0 +1,16 @@
+{
+  "image": "BassStaffScale.png",
+  "clef": "bass",
+  "bars": 2,
+  "totalBeats": 8,
+  "notes": [
+    { "note": 43, "name": "G2", "beats": 1 },
+    { "note": 45, "name": "A2", "beats": 1 },
+    { "note": 47, "name": "B2", "beats": 1 },
+    { "note": 48, "name": "C3", "beats": 1 },
+    { "note": 50, "name": "D3", "beats": 1 },
+    { "note": 52, "name": "E3", "beats": 1 },
+    { "note": 53, "name": "F3", "beats": 1 },
+    { "note": 55, "name": "G3", "beats": 1 }
+  ]
+}

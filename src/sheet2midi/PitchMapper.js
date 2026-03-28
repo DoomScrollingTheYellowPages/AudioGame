@@ -131,9 +131,9 @@ export class PitchMapper {
       }
     }
 
-    // Default to treble for single-staff scores
-    console.log(`[OMR] Clef defaulting to treble (no clef symbol found)`);
-    return 'treble';
+    // Default to bass for single-staff scores
+    console.log(`[OMR] Clef defaulting to bass (no clef symbol found)`);
+    return 'bass';
   }
 
   /**
@@ -437,9 +437,10 @@ export class PitchMapper {
    * @param {number} staffSpace
    * @param {Uint8Array} [binary] - for ledger line detection
    * @param {number} [imgWidth]
+   * @param {'treble'|'bass'|null} [clefOverride] - force a specific clef for all staves
    * @returns {Array<{symbol: object, staffPos: number, noteName: string, octave: number, midiNote: number, clef: string}>}
    */
-  assignPitches(symbols, staffGroups, staffSpace, binary, imgWidth) {
+  assignPitches(symbols, staffGroups, staffSpace, binary, imgWidth, clefOverride = null) {
     const noteTypes = new Set([
       SymbolType.FILLED_NOTEHEAD,
       SymbolType.OPEN_NOTEHEAD,
@@ -458,8 +459,8 @@ export class PitchMapper {
       const group = this._findStaffGroup(s.component.centroid.y, staffGroups, staffSpace);
       if (!group) continue;
 
-      // Use positional clef from grand staff pairs, fall back to symbol detection
-      const clef = clefMap.get(group) ?? this.detectClef(symbols, group);
+      // Use override if provided, else positional grand-staff clef, else symbol detection
+      const clef = clefOverride ?? (clefMap.get(group) ?? this.detectClef(symbols, group));
       const staffPos = this.quantizePosition(s.component.centroid.y, group, staffSpace);
       const { noteName, octave, midiNote } = this.positionToPitch(staffPos, clef);
 

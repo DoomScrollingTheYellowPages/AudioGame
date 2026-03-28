@@ -42,6 +42,7 @@ export class OMREngine {
   async process(file, options = {}) {
     const bpm = options.bpm ?? 120;
     const timeSig = options.timeSig ?? [4, 4];
+    const clef = options.clef || null;
 
     // Stage 1: Load image
     this._bus.emit('omr:progress', { stage: 1, name: 'Loading image' });
@@ -207,7 +208,7 @@ export class OMREngine {
     // Stage 8: Pitch assignment
     this._bus.emit('omr:progress', { stage: 8, name: 'Assigning pitches' });
     const pitchedNotes = this._pitchMapper.assignPitches(
-      symbols, groups, staffSpace, correctedBinary, width
+      symbols, groups, staffSpace, correctedBinary, width, clef
     );
     console.log(`[OMR] Stage 8: ${pitchedNotes.length} pitched notes`);
     this._bus.emit('omr:debug', {
