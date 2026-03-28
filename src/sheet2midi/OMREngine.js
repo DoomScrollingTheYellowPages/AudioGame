@@ -42,7 +42,11 @@ export class OMREngine {
   async process(file, options = {}) {
     const bpm = options.bpm ?? 120;
     const timeSig = options.timeSig ?? [4, 4];
-    const clef = options.clef || null;
+    // 'grand' means use grand staff auto-detection (brace→gap→fallback cascade)
+    // 'treble'/'bass' force a single-clef override for all staves
+    // null/'auto' uses single-staff NCC detection
+    const clef = (options.clef === 'grand' || !options.clef) ? null : options.clef;
+    const grandStaffMode = options.clef === 'grand';
 
     // Stage 1: Load image
     this._bus.emit('omr:progress', { stage: 1, name: 'Loading image' });
@@ -240,6 +244,9 @@ export class OMREngine {
     // Stage 11: MIDI assembly — merge notes and rests, compute start times
     this._bus.emit('omr:progress', { stage: 11, name: 'Generating MIDI' });
 
+    // Determine if a grand staff pair was detected
+    const isGrandStaff = grandStaffMode && !!this._pitchMapper._lastPairingMethod;
+
     // Merge into time-ordered sequence and compute cumulative startBeat
     const allEvents = [
       ...validatedNotes.map(n => ({ ...n, isRest: false })),
@@ -253,20 +260,40 @@ export class OMREngine {
       currentBeat += e.beats;
     }
 
-    const midiNotes = allEvents
-      .filter(n => !n.isRest && n.midiNote > 0)
-      .map(n => ({ note: n.midiNote, beats: n.beats, startBeat: n.startBeat }));
-    console.log(`[OMR] Stage 11: ${midiNotes.length} MIDI notes, ${validatedRests.length} rests integrated`);
+    let midi;
+    let midiNoteCount;
 
-    const midi = MidiWriter.build({
-      bpm,
-      notes: midiNotes,
-      meter: timeSig
-    });
+    if (isGrandStaff) {
+      // Split notes by clef into two tracks (treble = track 1, bass = track 2)
+      const trebleMidi = allEvents
+        .filter(n => !n.isRest && n.midiNote > 0 && n.clef === 'treble')
+        .map(n => ({ note: n.midiNote, beats: n.beats, startBeat: n.startBeat }));
+      const bassMidi = allEvents
+        .filter(n => !n.isRest && n.midiNote > 0 && n.clef === 'bass')
+        .map(n => ({ note: n.midiNote, beats: n.beats, startBeat: n.startBeat }));
+      midiNoteCount = trebleMidi.length + bassMidi.length;
+      console.log(`[OMR] Stage 11 (grand staff): ${trebleMidi.length} treble + ${bassMidi.length} bass MIDI notes → Format 1`);
+      midi = MidiWriter.buildMultiTrack({
+        bpm,
+        tracks: [trebleMidi, bassMidi],
+        meter: timeSig
+      });
+    } else {
+      const midiNotes = allEvents
+        .filter(n => !n.isRest && n.midiNote > 0)
+        .map(n => ({ note: n.midiNote, beats: n.beats, startBeat: n.startBeat }));
+      midiNoteCount = midiNotes.length;
+      console.log(`[OMR] Stage 11: ${midiNotes.length} MIDI notes, ${validatedRests.length} rests integrated`);
+      midi = MidiWriter.build({
+        bpm,
+        notes: midiNotes,
+        meter: timeSig
+      });
+    }
 
     this._bus.emit('omr:midi', {
       midi,
-      noteCount: midiNotes.length,
+      noteCount: midiNoteCount,
       corrections
     });
 

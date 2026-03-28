@@ -33,21 +33,21 @@
 
 ## Phase 3: Multi-Track MIDI Output
 
-- [ ] Task: Write failing test — `MidiWriter` produces Format 1 two-track MIDI
-  - [ ] Call `MidiWriter` with two note arrays (treble notes, bass notes)
-  - [ ] Parse resulting buffer and assert: format=1, numTracks=2
-  - [ ] Assert track 1 contains only treble notes, track 2 contains only bass notes
-  - [ ] Assert single-note-array call still produces Format 0 (backward compat)
-- [ ] Task: Extend `MidiWriter` to support Format 1 multi-track output
-  - [ ] Add `writeTracks(tracksArray, bpm)` method (array of note arrays)
-  - [ ] Write Format 1 header chunk (format=1, nTracks=N)
-  - [ ] Write one MTrk chunk per track
-  - [ ] Keep existing `write(notes, bpm)` as Format 0 path (unchanged)
-- [ ] Task: Update `OMREngine` to route grand staff results to `writeTracks`
-  - [ ] Detect when `staffInfo` contains a grand staff pair
-  - [ ] Split notes by staff group: treble notes → track 1, bass notes → track 2
-  - [ ] Pass both arrays to `MidiWriter.writeTracks`
-  - [ ] Single-staff path unchanged
+- [x] Task: Write failing test — `MidiWriter` produces Format 1 two-track MIDI
+  - [x] Call `MidiWriter` with two note arrays (treble notes, bass notes)
+  - [x] Parse resulting buffer and assert: format=1, numTracks=2
+  - [x] Assert track 1 contains only treble notes, track 2 contains only bass notes
+  - [x] Assert single-note-array call still produces Format 0 (backward compat)
+- [x] Task: Extend `MidiWriter` to support Format 1 multi-track output
+  - [x] Add `buildMultiTrack({ bpm, tracks, ... })` static method (array of note arrays)
+  - [x] Write Format 1 header chunk (format=1, nTracks=N)
+  - [x] Write one MTrk chunk per track
+  - [x] Keep existing `build(notes, bpm)` as Format 0 path (unchanged)
+- [x] Task: Update `OMREngine` to route grand staff results to `buildMultiTrack`
+  - [x] Detect when clef='grand' and pitchMapper._lastPairingMethod is set
+  - [x] Split notes by clef: treble notes → track 1, bass notes → track 2
+  - [x] Pass both arrays to `MidiWriter.buildMultiTrack`
+  - [x] Single-staff path unchanged
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Multi-Track MIDI Output' (Protocol in workflow.md)
 
 ## Phase 4: UI — Grand Staff Default
