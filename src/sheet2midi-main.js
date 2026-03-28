@@ -6,6 +6,7 @@
 import { EventBus } from './core/EventBus.js';
 import { OMREngine } from './sheet2midi/OMREngine.js';
 import { OMRDebugOverlay } from './sheet2midi/OMRDebugOverlay.js';
+import { OMRPlayer } from './sheet2midi/OMRPlayer.js';
 
 // ── Constants ──────────────────────────────────
 
@@ -34,6 +35,7 @@ const statNotes = document.getElementById('stat-notes');
 const statStaves = document.getElementById('stat-staves');
 const statMeasures = document.getElementById('stat-measures');
 const downloadBtn = document.getElementById('download-btn');
+const playBtn = document.getElementById('play-btn');
 const correctionsLog = document.getElementById('corrections-log');
 const correctionsList = document.getElementById('corrections-list');
 const errorMsg = document.getElementById('error-msg');
@@ -51,8 +53,11 @@ const clefSelect = document.getElementById('clef-select');
 const bus = new EventBus();
 const engine = new OMREngine(bus);
 const overlay = new OMRDebugOverlay(overlayCanvas);
+const player = new OMRPlayer();
 let selectedFile = null;
 let lastMidiBuffer = null;
+let lastPlaybackNotes = null;
+let lastPlaybackBpm = 120;
 let pdfDoc = null;
 let pdfPage = 1;
 let _clefDetections = []; // captured per-run from omr:clef-detected events
@@ -212,6 +217,9 @@ processBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
 
   processBtn.disabled = true;
+  player.stop();
+  playBtn.textContent = '▶ Play';
+  playBtn.disabled = true;
   progressArea.classList.add('active');
   resultsArea.classList.remove('active');
   overlayCanvas.classList.remove('active');
@@ -239,6 +247,14 @@ processBtn.addEventListener('click', async () => {
     });
 
     lastMidiBuffer = result.midi;
+    lastPlaybackBpm = bpm;
+    // Sort notes by x-position for sequential playback (handles grand staff interleaving)
+    lastPlaybackNotes = result.notes
+      .filter(n => n.midiNote > 0)
+      .sort((a, b) => (a.symbol?.component?.centroid?.x ?? 0) - (b.symbol?.component?.centroid?.x ?? 0));
+    player.stop();
+    playBtn.textContent = '▶ Play';
+    playBtn.disabled = lastPlaybackNotes.length === 0;
 
     // Show results
     statNotes.textContent = result.notes.filter(n => n.midiNote > 0).length;
@@ -500,4 +516,23 @@ downloadBtn.addEventListener('click', () => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+});
+
+// ── Playback ───────────────────────────────────
+
+playBtn.addEventListener('click', () => {
+  if (player.isPlaying) {
+    player.stop();
+    playBtn.textContent = '▶ Play';
+  } else if (lastPlaybackNotes && lastPlaybackNotes.length > 0) {
+    player.play(lastPlaybackNotes, lastPlaybackBpm);
+    playBtn.textContent = '■ Stop';
+    // Compute total duration and auto-revert button label
+    const beatDuration = 60 / lastPlaybackBpm;
+    const totalBeats = lastPlaybackNotes.reduce((s, n) => s + (n.beats || 1), 0);
+    const totalMs = totalBeats * beatDuration * 1000 + 200;
+    setTimeout(() => {
+      if (!player.isPlaying) playBtn.textContent = '▶ Play';
+    }, totalMs);
+  }
 });

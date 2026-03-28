@@ -280,7 +280,7 @@
       letter-spacing: 1px;
     }
 
-    #download-btn {
+    #download-btn, #play-btn {
       background: var(--accent);
       color: var(--bg);
       border: none;
@@ -294,7 +294,9 @@
       letter-spacing: 1px;
       transition: opacity 0.2s;
     }
-    #download-btn:hover { opacity: 0.85; }
+    #download-btn:hover, #play-btn:hover { opacity: 0.85; }
+    #play-btn { background: #2255aa; color: #e0e0e0; margin-left: 8px; }
+    #play-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     /* ── Corrections Log ── */
     .corrections-log {
@@ -585,6 +587,7 @@
       </div>
     </div>
     <button id="download-btn">Download MIDI</button>
+    <button id="play-btn" disabled>&#9654; Play</button>
     <div class="corrections-log" id="corrections-log">
       <h4>Corrections &amp; Warnings</h4>
       <div id="corrections-list"></div>
