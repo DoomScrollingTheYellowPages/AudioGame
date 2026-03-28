@@ -52,18 +52,18 @@
 
 ## Phase 4: UI — Grand Staff Default
 
-- [ ] Task: Write failing test — clef selector default is "Grand Staff (Auto)"
-  - [ ] Assert `clef-select` element has `value = 'grand'` on page load
-  - [ ] Assert passing `clef: 'grand'` to `engine.process()` triggers grand staff path
-- [ ] Task: Update `sheet2midi.html` clef selector
-  - [ ] Add `<option value="grand" selected>Grand Staff (Auto)</option>` as first/default option
-  - [ ] Remove `selected` from existing "Bass" option
-- [ ] Task: Update `sheet2midi-main.js` to handle `clef === 'grand'`
-  - [ ] Pass `clef: 'grand'` to `engine.process()` when selected
-- [ ] Task: Update `OMREngine.process()` to handle `clef: 'grand'`
-  - [ ] When `options.clef === 'grand'`, set `clefOverride = null` and enable grand staff detection
-  - [ ] When `options.clef` is `'treble'` or `'bass'`, use override as before (disables pairing)
-  - [ ] When `options.clef` is `null`/`''`/`'auto'`, use single-staff NCC detection
+- [x] Task: Write failing test — clef selector default is "Grand Staff (Auto)"
+  - [x] Assert `clef-select` element has `value = 'grand'` on page load (verified via HTML)
+  - [x] Assert passing `clef: 'grand'` to `engine.process()` triggers grand staff path
+- [x] Task: Update `sheet2midi.html` clef selector
+  - [x] Add `<option value="grand" selected>Grand Staff (Auto)</option>` as first/default option
+  - [x] Removed `selected` from existing "Bass" option; added "Single Staff (Auto)" for NCC-only path
+- [x] Task: Update `sheet2midi-main.js` to handle `clef === 'grand'`
+  - [x] Existing `clef: clefSelect.value || null` passes 'grand' through correctly — no change needed
+- [x] Task: Update `OMREngine.process()` to handle `clef: 'grand'`
+  - [x] When `options.clef === 'grand'`, clefOverride=null and grandStaffMode=true
+  - [x] When `options.clef` is `'treble'` or `'bass'`, override as before (disables pairing)
+  - [x] When `options.clef` is `null`/`''`, single-staff NCC detection (grandStaffMode=false)
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: UI — Grand Staff Default' (Protocol in workflow.md)
 
 ## Phase 5: Test Fixtures and Validation
