@@ -37,3 +37,9 @@ This file tracks all major tracks for the project. Each track has its own detail
 ## [x] Track: OMR Playback Preview
 *Link: [./conductor/tracks/omr_playback_20260328/](./conductor/tracks/omr_playback_20260328/)*
 
+---
+
+## [~] Track: More Demo Songs
+*Link: [./conductor/tracks/more_songs_20260328/](./conductor/tracks/more_songs_20260328/)*
+
+
