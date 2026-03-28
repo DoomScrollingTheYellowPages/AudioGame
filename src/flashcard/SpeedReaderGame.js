@@ -9,8 +9,10 @@ import { StaffRenderer }                from './StaffRenderer.js';
 import { FingeringRenderer, FINGERING_H } from '../fingering/FingeringRenderer.js';
 import { pitchClass }                  from '../core/NoteInfo.js';
 
-// All chromatic notes — treble clef C4–A♯5
+// All chromatic notes — treble clef C4–A♯5 (MIDI 60–82)
 const TREBLE_NOTES = Array.from({ length: 23 }, (_, i) => 60 + i);
+// All chromatic notes — bass clef C2–B3 (MIDI 36–59)
+const BASS_NOTES   = Array.from({ length: 24 }, (_, i) => 36 + i);
 
 export class SpeedReaderGame {
   /**
@@ -41,6 +43,8 @@ export class SpeedReaderGame {
     this.maxStreak       = 0;
     this._totalNoteMs    = 0;
     this._sessionStart   = 0;
+
+    this._clefMode      = 'treble';
 
     this._advanceTimer  = null;
     this._wrongTimer    = null;
@@ -77,14 +81,28 @@ export class SpeedReaderGame {
     this._firstTry = true;
     this._noteStart = Date.now();
 
+    const pool = this._notePool();
     let note;
     do {
-      note = TREBLE_NOTES[Math.floor(Math.random() * TREBLE_NOTES.length)];
-    } while (note === this.currentNote && TREBLE_NOTES.length > 1);
+      note = pool[Math.floor(Math.random() * pool.length)];
+    } while (note === this.currentNote && pool.length > 1);
 
     this.currentNote = note;
     this.renderer.render(note, 'normal');
     this._setFeedback('', '');
+  }
+
+  /** @param {'treble'|'bass'|'both'} mode */
+  setClefMode(mode) {
+    this._clefMode = mode;
+    this.nextNote();
+  }
+
+  /** @returns {number[]} */
+  _notePool() {
+    if (this._clefMode === 'bass') return BASS_NOTES;
+    if (this._clefMode === 'both') return [...TREBLE_NOTES, ...BASS_NOTES];
+    return TREBLE_NOTES;
   }
 
   submitAnswer(noteName) {
