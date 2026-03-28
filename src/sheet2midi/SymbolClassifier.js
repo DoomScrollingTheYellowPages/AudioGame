@@ -43,9 +43,10 @@ const RULES = [
   {
     type: SymbolType.CLEF_TREBLE,
     test: (c) => c.heightSS >= 3.0
-      && c.widthSS >= 0.8 && c.widthSS <= 4.0
-      && c.aspectRatio >= 0.15 && c.aspectRatio <= 0.7
-      && c.fillRatio >= 0.2 && c.fillRatio <= 0.7
+      && c.widthSS >= 0.8 && c.widthSS <= 3.5
+      && c.aspectRatio >= 0.15 && c.aspectRatio <= 0.65
+      && c.fillRatio >= 0.15 && c.fillRatio <= 0.65
+      && c.holes >= 1   // treble clef loop creates an enclosed white region
   },
   {
     type: SymbolType.CLEF_BASS,

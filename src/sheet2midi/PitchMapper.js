@@ -46,7 +46,18 @@ export class PitchMapper {
    * @param {number[]} staffGroup - 5 staff line y-positions
    * @returns {'treble'|'bass'}
    */
-  detectClef(symbols, staffGroup) {
+  detectClef(symbols, staffGroup, binary = null, imgWidth = 0, staffSpace = 0) {
+    // Primary: NCC template matching — finds the clef regardless of what nearby
+    // objects the symbol classifier may have mislabelled.
+    if (binary && staffSpace > 0) {
+      const nccClef = this._detectClefByNCC(binary, imgWidth, staffGroup, staffSpace);
+      if (nccClef) {
+        console.log(`[OMR] Clef detected by NCC: ${nccClef}`);
+        return nccClef;
+      }
+    }
+    // Fallback: symbol-label-based heuristics (less reliable, retained for edge cases)
+    {
     const topLine = staffGroup[0];
     const bottomLine = staffGroup[4];
     const staffHeight = bottomLine - topLine;
@@ -134,6 +145,7 @@ export class PitchMapper {
     // Default to bass for single-staff scores
     console.log(`[OMR] Clef defaulting to bass (no clef symbol found)`);
     return 'bass';
+    } // end fallback block
   }
 
   /**
@@ -459,8 +471,8 @@ export class PitchMapper {
       const group = this._findStaffGroup(s.component.centroid.y, staffGroups, staffSpace);
       if (!group) continue;
 
-      // Use override if provided, else positional grand-staff clef, else symbol detection
-      const clef = clefOverride ?? (clefMap.get(group) ?? this.detectClef(symbols, group));
+      // Use override if provided, else positional grand-staff clef, else NCC+symbol detection
+      const clef = clefOverride ?? (clefMap.get(group) ?? this.detectClef(symbols, group, binary, imgWidth, staffSpace));
       const staffPos = this.quantizePosition(s.component.centroid.y, group, staffSpace);
       const { noteName, octave, midiNote } = this.positionToPitch(staffPos, clef);
 
@@ -514,6 +526,192 @@ export class PitchMapper {
    * @param {number} staffSpace
    * @returns {number[]|null}
    */
+  // ── NCC-based clef detection ────────────────────────────────────────────────
+
+  /**
+   * Detect the clef for a staff group by running NCC against procedurally generated
+   * treble and bass clef templates. Scans only horizontally (x: 0 → 7×staffSpace)
+   * with templates vertically aligned to the staff — far more reliable than relying
+   * on symbol classification labels.
+   *
+   * @param {Uint8Array} binary   — 0=ink, 255=bg
+   * @param {number}     imgWidth
+   * @param {number[]}   staffGroup — 5 staff line y-positions
+   * @param {number}     staffSpace
+   * @returns {'treble'|'bass'|null}  null = no confident match
+   */
+  _detectClefByNCC(binary, imgWidth, staffGroup, staffSpace) {
+    const topLine    = staffGroup[0];
+    const bottomLine = staffGroup[4];
+    const ss = staffSpace;
+
+    const trebleTpl = this._makeTrebleTemplate(ss);
+    const bassTpl   = this._makeBassTemplate(ss);
+
+    // Treble template y0: template top sits 0.9 ss above the staff top line
+    const trebleY0 = Math.round(topLine - ss * 0.9);
+    // Bass template y0: template top sits 0.5 ss above the staff top line
+    const bassY0   = Math.round(topLine - ss * 0.5);
+
+    // Search x = 0 … 7×ss (clef is always at the very left of the staff)
+    const xMax = Math.round(ss * 7);
+
+    const trebleScore = this._nccScanX(binary, imgWidth, trebleTpl, 0, xMax, trebleY0);
+    const bassScore   = this._nccScanX(binary, imgWidth, bassTpl,   0, xMax, bassY0);
+
+    console.log(`[OMR] Clef NCC: treble=${trebleScore.toFixed(3)} bass=${bassScore.toFixed(3)}`);
+
+    const THRESHOLD = 0.25;
+    if (trebleScore < THRESHOLD && bassScore < THRESHOLD) return null;
+    return trebleScore >= bassScore ? 'treble' : 'bass';
+  }
+
+  /**
+   * Scan horizontally for the best NCC match of a template at a fixed y0.
+   * @param {Uint8Array} binary
+   * @param {number}     imgWidth
+   * @param {{data:Uint8Array, w:number, h:number}} tpl
+   * @param {number}     x0
+   * @param {number}     x1
+   * @param {number}     y0  — desired template top (clamped to image bounds)
+   * @returns {number}   best NCC score in [0,1]
+   */
+  _nccScanX(binary, imgWidth, tpl, x0, x1, y0) {
+    const { data, w, h } = tpl;
+    const N   = w * h;
+    const imgH = Math.floor(binary.length / imgWidth);
+
+    const sy = Math.max(0, Math.min(imgH - h, y0));
+
+    // Template mean + std (constant per call)
+    let tSum = 0;
+    for (let i = 0; i < N; i++) tSum += data[i];
+    const tMean = tSum / N;
+    let tVar = 0;
+    for (let i = 0; i < N; i++) { const d = data[i] - tMean; tVar += d * d; }
+    const tStd = Math.sqrt(tVar);
+    if (tStd < 1e-6) return 0;
+
+    let best = -1;
+    const xEnd = Math.min(x1, imgWidth - w);
+    for (let sx = x0; sx <= xEnd; sx++) {
+      // Patch mean
+      let pSum = 0;
+      for (let ty = 0; ty < h; ty++) {
+        const row = (sy + ty) * imgWidth;
+        for (let tx = 0; tx < w; tx++) pSum += binary[row + sx + tx];
+      }
+      const pMean = pSum / N;
+
+      // NCC
+      let num = 0, pVar = 0;
+      for (let ty = 0; ty < h; ty++) {
+        const row = (sy + ty) * imgWidth;
+        for (let tx = 0; tx < w; tx++) {
+          const pv = binary[row + sx + tx] - pMean;
+          const tv = data[ty * w + tx] - tMean;
+          num  += pv * tv;
+          pVar += pv * pv;
+        }
+      }
+      const pStd = Math.sqrt(pVar);
+      if (pStd < 1e-6) continue;
+      const score = num / (pStd * tStd);
+      if (score > best) best = score;
+    }
+    return Math.max(0, best);
+  }
+
+  /**
+   * Generate a treble clef (G clef) template scaled to staffSpace.
+   * Template coords: y increases downward, y=0 at top.
+   * Staff bottom line sits at template y = 4.9×ss; G line at 3.9×ss.
+   * @param {number} ss — staffSpace in pixels
+   * @returns {{data:Uint8Array, w:number, h:number}}
+   */
+  _makeTrebleTemplate(ss) {
+    const w = Math.round(ss * 1.6);
+    const h = Math.round(ss * 5.5);
+    const data = new Uint8Array(w * h).fill(255);
+
+    const stemX  = Math.round(w * 0.42);
+    const stroke = Math.max(1, Math.round(ss * 0.09));
+
+    // 1. Vertical stem (full height)
+    for (let y = 0; y < h; y++)
+      for (let dx = -stroke; dx <= stroke; dx++) {
+        const px = stemX + dx;
+        if (px >= 0 && px < w) data[y * w + px] = 0;
+      }
+
+    // 2. Ring (loop) around the G line (2nd from bottom = 3.9×ss from template top)
+    const loopCY = Math.round(ss * 3.9);
+    const oRX = Math.round(ss * 0.55), oRY = Math.round(ss * 0.72);
+    const iRX = Math.round(ss * 0.28), iRY = Math.round(ss * 0.48);
+    for (let y = Math.max(0, loopCY - oRY - 1); y < Math.min(h, loopCY + oRY + 2); y++)
+      for (let x = 0; x < w; x++) {
+        const dx = x - stemX, dy = y - loopCY;
+        const outer = (dx*dx)/(oRX*oRX) + (dy*dy)/(oRY*oRY);
+        const inner = (dx*dx)/(iRX*iRX) + (dy*dy)/(iRY*iRY);
+        if (outer <= 1.0 && inner > 1.0) data[y * w + x] = 0;
+      }
+
+    // 3. Spiral curl (filled circle below staff bottom line)
+    const sCY = Math.round(ss * 5.2);
+    const sR  = Math.round(ss * 0.35);
+    for (let y = Math.max(0, sCY - sR - 1); y < Math.min(h, sCY + sR + 2); y++)
+      for (let x = 0; x < w; x++) {
+        const dx = x - stemX, dy = y - sCY;
+        if (dx*dx + dy*dy <= sR*sR) data[y * w + x] = 0;
+      }
+
+    return { data, w, h };
+  }
+
+  /**
+   * Generate a bass clef (F clef) template scaled to staffSpace.
+   * Template coords: y=0 at top. Template top sits 0.5×ss above the staff top line.
+   * F line (4th from bottom = 2nd from top) is at template y ≈ 1.5×ss.
+   * @param {number} ss — staffSpace in pixels
+   * @returns {{data:Uint8Array, w:number, h:number}}
+   */
+  _makeBassTemplate(ss) {
+    const w = Math.round(ss * 2.4);
+    const h = Math.round(ss * 2.2);
+    const data = new Uint8Array(w * h).fill(255);
+
+    const stroke = Math.max(1, Math.round(ss * 0.10));
+
+    // C-curve body (arc opening right, centred at ~52% height)
+    const arcCX = Math.round(ss * 0.35);
+    const arcCY = Math.round(h  * 0.52);
+    const arcR  = Math.round(ss * 0.70);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const dx = x - arcCX, dy = y - arcCY;
+        const r = Math.sqrt(dx*dx + dy*dy);
+        if (r >= arcR - stroke && r <= arcR + stroke) {
+          // Skip the right-facing gap (±25° around angle=0)
+          const angle = Math.atan2(dy, dx);
+          if (Math.abs(angle) > Math.PI * 0.22) data[y * w + x] = 0;
+        }
+      }
+
+    // Two dots (F line ± half a space)
+    const dotX  = Math.round(ss * 1.65);
+    const dotR  = Math.max(2, Math.round(ss * 0.16));
+    const dot1Y = Math.round(ss * 0.90);
+    const dot2Y = Math.round(ss * 1.50);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const d1 = (x-dotX)**2 + (y-dot1Y)**2;
+        const d2 = (x-dotX)**2 + (y-dot2Y)**2;
+        if (d1 <= dotR*dotR || d2 <= dotR*dotR) data[y * w + x] = 0;
+      }
+
+    return { data, w, h };
+  }
+
   _findStaffGroup(y, staffGroups, staffSpace) {
     const margin = staffSpace * 2; // allow notes 2 spaces above/below staff (ledger lines)
     let bestGroup = null;
