@@ -5,6 +5,8 @@
 // DOM:  owns a <canvas> inside the container
 // ─────────────────────────────────────────────
 
+import { Theme } from '../core/Theme.js';
+
 const BLACKS = new Set([1, 3, 6, 8, 10]);
 
 function isBlack(n) { return BLACKS.has(n % 12); }
@@ -71,12 +73,13 @@ export class KeyboardDisplay {
     const bH = H * 0.6;
 
     ctx.clearRect(0, 0, W, H);
+    const t = Theme.current();
 
     // ── White keys ──
     let wx = 0;
     for (let n = LOW; n <= HIGH; n++) {
       if (isBlack(n)) continue;
-      ctx.fillStyle   = this._held.has(n) ? '#00ff88' : '#e8e8e8';
+      ctx.fillStyle   = this._held.has(n) ? t.accent : '#e8e8e8';
       ctx.strokeStyle = '#222';
       ctx.lineWidth   = 0.5;
       ctx.fillRect(wx, 0, wW - 1, H);
@@ -94,7 +97,7 @@ export class KeyboardDisplay {
         continue;
       }
       const bx = prevWhiteX + wW - bW / 2;
-      ctx.fillStyle = this._held.has(n) ? '#00cc66' : '#111';
+      ctx.fillStyle = this._held.has(n) ? t.accent : '#111';
       ctx.fillRect(bx, 0, bW, bH);
     }
   }

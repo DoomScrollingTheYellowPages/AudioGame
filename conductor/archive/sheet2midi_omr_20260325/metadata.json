@@ -1,0 +1,8 @@
+{
+  "track_id": "sheet2midi_omr_20260325",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-03-25T04:58:18Z",
+  "updated_at": "2026-03-25T04:58:18Z",
+  "description": "Complete the Sheet2MIDI OMR pipeline — bring the optical music recognition engine from its current partial implementation to a functional state that can process scanned sheet music images and produce playable MIDI output."
+}

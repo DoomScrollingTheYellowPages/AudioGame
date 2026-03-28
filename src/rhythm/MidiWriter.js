@@ -32,13 +32,21 @@ export class MidiWriter {
     track.push((usPerBeat >> 8) & 0xFF);
     track.push(usPerBeat & 0xFF);
 
-    // Note events
-    for (const { note, beats } of notes) {
-      const ticks = Math.round(beats * ticksPerBeat);
-      // Note On (delta 0)
-      track.push(0x00, 0x90, note, velocity);
-      // Note Off (delta = ticks)
-      track.push(...MidiWriter._vlq(ticks), 0x80, note, 0x00);
+    // Note events — supports optional startBeat for rest gaps
+    let currentTick = 0;
+    for (const n of notes) {
+      const ticks = Math.round(n.beats * ticksPerBeat);
+      // Compute delta before note on (rest gap)
+      let deltaOn = 0;
+      if (n.startBeat !== undefined) {
+        const targetTick = Math.round(n.startBeat * ticksPerBeat);
+        deltaOn = Math.max(0, targetTick - currentTick);
+      }
+      // Note On (delta = rest gap, or 0 if no startBeat)
+      track.push(...MidiWriter._vlq(deltaOn), 0x90, n.note, velocity);
+      // Note Off (delta = note duration ticks)
+      track.push(...MidiWriter._vlq(ticks), 0x80, n.note, 0x00);
+      currentTick += deltaOn + ticks;
     }
 
     // End of track

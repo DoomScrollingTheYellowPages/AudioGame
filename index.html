@@ -4,13 +4,47 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AudioGame</title>
+  <script>
+    // ── Theme init (blocking, before paint) ──
+    (function() {
+      var t = localStorage.getItem('audiogame-theme');
+      if (t !== 'dark' && t !== 'warm' && t !== 'clean') t = 'dark';
+      document.documentElement.className = 'theme-' + t;
+    })();
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* ── Theme variables ── */
+    .theme-dark {
+      --bg: #0d0d0d; --text: #e0e0e0; --accent: #00ff88; --error: #ff4444;
+      --control-bg: #1a1a1a; --control-border: #2a2a2a;
+      --font: 'Courier New', monospace;
+      --perfect: #00ff88; --great: #88cc44; --good: #ccaa22; --miss: #ff4444;
+      --dim: #333; --dim2: #444; --dim3: #555; --mid: #888;
+      --card-bg: #141414; --card-border: #222; --card-hover-bg: #161f18;
+    }
+    .theme-warm {
+      --bg: #faf5ef; --text: #3a3330; --accent: #e8863a; --error: #d94444;
+      --control-bg: #f0e8df; --control-border: #d9cfc3;
+      --font: 'Nunito', 'Segoe UI', sans-serif;
+      --perfect: #4caf50; --great: #8bc34a; --good: #ffc107; --miss: #d94444;
+      --dim: #bfb3a4; --dim2: #a89888; --dim3: #8a7d70; --mid: #6b5f53;
+      --card-bg: #f0e8df; --card-border: #d9cfc3; --card-hover-bg: #e8dfd4;
+    }
+    .theme-clean {
+      --bg: #ffffff; --text: #212121; --accent: #1976d2; --error: #c62828;
+      --control-bg: #f5f5f5; --control-border: #e0e0e0;
+      --font: 'Inter', 'Helvetica Neue', sans-serif;
+      --perfect: #1976d2; --great: #42a5f5; --good: #ffa726; --miss: #c62828;
+      --dim: #bdbdbd; --dim2: #9e9e9e; --dim3: #757575; --mid: #616161;
+      --card-bg: #f5f5f5; --card-border: #e0e0e0; --card-hover-bg: #eeeeee;
+    }
+
     body {
-      background: #0d0d0d;
-      color: #e0e0e0;
-      font-family: 'Courier New', monospace;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
       min-height: 100dvh;
       display: flex;
       flex-direction: column;
@@ -24,7 +58,7 @@
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 4px;
-      color: #333;
+      color: var(--dim);
     }
 
     .nav-grid {
@@ -39,8 +73,8 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
-      background: #141414;
-      border: 1px solid #222;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
       border-radius: 8px;
       padding: 28px 24px;
       text-decoration: none;
@@ -49,15 +83,15 @@
       cursor: pointer;
     }
     .nav-card:hover {
-      border-color: #00ff88;
-      background: #161f18;
+      border-color: var(--accent);
+      background: var(--card-hover-bg);
     }
-    .nav-card:hover .nav-icon { color: #00ff88; }
-    .nav-card:hover .nav-label { color: #e0e0e0; }
+    .nav-card:hover .nav-icon { color: var(--accent); }
+    .nav-card:hover .nav-label { color: var(--text); }
 
     .nav-icon {
       font-size: 28px;
-      color: #333;
+      color: var(--dim);
       transition: color 0.2s;
       line-height: 1;
     }
@@ -65,14 +99,14 @@
     .nav-label {
       font-size: 13px;
       font-weight: bold;
-      color: #888;
+      color: var(--mid);
       letter-spacing: 1px;
       transition: color 0.2s;
     }
 
     .nav-desc {
       font-size: 10px;
-      color: #444;
+      color: var(--dim2);
       line-height: 1.5;
     }
 
@@ -85,12 +119,40 @@
       justify-content: center;
       font-size: 10px;
       letter-spacing: 1px;
-      color: #333;
+      color: var(--dim);
     }
-    .device-status .label { color: #444; }
-    .device-status .value { color: #555; }
-    .device-status .value.ok { color: #00ff88; }
-    .device-status .value.err { color: #ff4444; }
+    .device-status .label { color: var(--dim2); }
+    .device-status .value { color: var(--dim3); }
+    .device-status .value.ok { color: var(--accent); }
+    .device-status .value.err { color: var(--error); }
+
+    /* ── Theme selector ── */
+    .theme-selector {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .theme-selector-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--dim);
+      margin-right: 4px;
+    }
+    .theme-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid var(--control-border);
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s;
+      padding: 0;
+    }
+    .theme-btn:hover { transform: scale(1.15); }
+    .theme-btn.active { border-color: var(--accent); border-width: 3px; }
+    .theme-btn[data-theme="dark"] { background: #0d0d0d; }
+    .theme-btn[data-theme="warm"] { background: #faf5ef; }
+    .theme-btn[data-theme="clean"] { background: #ffffff; }
 
     @media (max-width: 480px) {
       .nav-grid { grid-template-columns: 1fr; max-width: 320px; }
@@ -106,7 +168,7 @@
 
     <a class="nav-card" href="./flashcard.html">
       <div class="nav-icon">♩</div>
-      <div class="nav-label">Flashcard Game</div>
+      <div class="nav-label">Flashcards</div>
       <div class="nav-desc">Read notes on a staff.<br>Identify them by ear or keyboard.</div>
     </a>
 
@@ -118,8 +180,14 @@
 
     <a class="nav-card" href="./rhythm.html">
       <div class="nav-icon">&#9835;</div>
-      <div class="nav-label">Music Game</div>
+      <div class="nav-label">MidiHero</div>
       <div class="nav-desc">Guitar Hero-style.<br>Hit notes in time as they scroll.</div>
+    </a>
+
+    <a class="nav-card" href="./sheet2midi.html">
+      <div class="nav-icon">&#119070;</div>
+      <div class="nav-label">Sheet2MIDI</div>
+      <div class="nav-desc">Upload sheet music images.<br>Convert to MIDI files.</div>
     </a>
 
     <a class="nav-card" href="./input-config.html">
@@ -130,12 +198,33 @@
 
   </nav>
 
+  <div class="theme-selector">
+    <span class="theme-selector-label">Theme</span>
+    <button class="theme-btn" data-theme="dark" title="Dark / Techy"></button>
+    <button class="theme-btn" data-theme="warm" title="Warm / Approachable"></button>
+    <button class="theme-btn" data-theme="clean" title="Clean / Professional"></button>
+  </div>
+
   <div class="device-status">
     <span><span class="label">MIDI:</span> <span id="midi-info" class="value">checking…</span></span>
     <span><span class="label">Audio:</span> <span id="audio-info" class="value">checking…</span></span>
   </div>
 
   <script type="module">
+    // ── Theme selector ──
+    const themeBtns = document.querySelectorAll('.theme-btn');
+    function setActiveTheme(id) {
+      document.documentElement.className = 'theme-' + id;
+      localStorage.setItem('audiogame-theme', id);
+      themeBtns.forEach(b => b.classList.toggle('active', b.dataset.theme === id));
+    }
+    // Init active state
+    const currentTheme = localStorage.getItem('audiogame-theme') || 'dark';
+    themeBtns.forEach(b => {
+      b.classList.toggle('active', b.dataset.theme === currentTheme);
+      b.addEventListener('click', () => setActiveTheme(b.dataset.theme));
+    });
+
     const midiEl  = document.getElementById('midi-info');
     const audioEl = document.getElementById('audio-info');
 

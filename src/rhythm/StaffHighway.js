@@ -1,3 +1,5 @@
+import { Theme } from '../core/Theme.js';
+
 // ─────────────────────────────────────────────
 // StaffHighway — grand staff notation highway
 // ─────────────────────────────────────────────
@@ -39,25 +41,28 @@ const TREBLE_D = [30, 32, 34, 36, 38];   // E4 G4 B4 D5 F5
 const BASS_D   = [18, 20, 22, 24, 26];   // G2 B2 D3 F3 A3
 const MIDDLE_C_D = 28;                    // C4 — ledger between staves
 
-// ── Colors ────────────────────────────────────
-const C = {
-  bg:            '#0d0d0d',
-  staffLine:     '#484848',
-  hitZone:       '#333',
-  hitZoneActive: '#00ff88',
-  clef:          '#888',
-  noteFuture:    '#aaa',
-  notePast:      '#444',
-  ledger:        '#888',
-  perfect:       '#00ff88',
-  great:         '#88cc44',
-  good:          '#ccaa22',
-  miss:          '#ff4444',
-  activeGlow:    'rgba(0,255,136,0.3)',
-  beatLine:      'rgba(255,255,255,0.06)',
-  barLine:       'rgba(255,255,255,0.15)',
-  barLabel:      '#555',
-};
+// ── Colors (derived from active theme) ────────
+function getColors() {
+  const t = Theme.current();
+  return {
+    bg:            t.bg,
+    staffLine:     t.staffLine,
+    hitZone:       t.hitZone,
+    hitZoneActive: t.hitZoneActive,
+    clef:          t.staffLine,
+    noteFuture:    t.notehead,
+    notePast:      t.note,
+    ledger:        t.staffLine,
+    perfect:       t.perfect,
+    great:         t.great,
+    good:          t.good,
+    miss:          t.miss,
+    activeGlow:    t.hitZoneActive + '4D',
+    beatLine:      t.beatLine,
+    barLine:       t.barLine,
+    barLabel:      t.dimText,
+  };
+}
 
 // Note head dimensions
 const NH_RX = 10;    // horizontal radius
@@ -132,6 +137,7 @@ export class StaffHighway {
     const ctx = this._ctx;
     const W   = this._canvas.width;
     const H   = this._canvas.height;
+    const C   = getColors();
 
     // ── Background ──────────────────────────────
     ctx.fillStyle = C.bg;
@@ -149,7 +155,7 @@ export class StaffHighway {
     }
 
     // ── Beat / bar lines (behind everything) ────
-    this._drawBeatLines(ctx, position, W);
+    this._drawBeatLines(ctx, position, W, C);
 
     // ── Brace / bar line on far left ────────────
     const topY    = yOf(TREBLE_D[TREBLE_D.length - 1]);
@@ -178,8 +184,8 @@ export class StaffHighway {
         const { d } = noteStaffInfo(refMidi);
         const gy = yOf(d);
         const grad = ctx.createRadialGradient(HIT_ZONE_X, gy, 0, HIT_ZONE_X, gy, 28);
-        grad.addColorStop(0, 'rgba(0,255,136,0.35)');
-        grad.addColorStop(1, 'rgba(0,255,136,0)');
+        grad.addColorStop(0, C.hitZoneActive + '59');
+        grad.addColorStop(1, C.hitZoneActive + '00');
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(HIT_ZONE_X, gy, 28, 0, Math.PI * 2);
@@ -282,7 +288,7 @@ export class StaffHighway {
   }
 
   // ── Beat / bar line rendering ────────────────
-  _drawBeatLines(ctx, position, W) {
+  _drawBeatLines(ctx, position, W, C) {
     const msPerBeat = 60000 / this._bpm;
     const beatsPerBar = this._meter[0];
     const topY = yOf(TREBLE_D[TREBLE_D.length - 1]);

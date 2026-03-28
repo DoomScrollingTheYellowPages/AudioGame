@@ -1,0 +1,8 @@
+{
+  "track_id": "fingering_charts_20260325",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-03-25T06:25:00Z",
+  "updated_at": "2026-03-25T06:25:00Z",
+  "description": "Add fingering chart data and renderers for flute, clarinet, trumpet, saxophone, piano, and guitar tab"
+}

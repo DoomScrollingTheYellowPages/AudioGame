@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────
 
 import { EventBus }         from './core/EventBus.js';
+import { Theme }            from './core/Theme.js';
 import { AudioInput }       from './input/AudioInput.js';
 import { MIDIInput }        from './input/MIDIInput.js';
 import { Oscilloscope }     from './ui/Oscilloscope.js';
@@ -40,7 +41,7 @@ bus.on('audio:state', ({ active, error }) => {
     btnAudio.classList.add('active');
   } else if (error) {
     btnAudio.textContent = 'Permission denied';
-    btnAudio.style.color = '#ff4444';
+    btnAudio.style.color = Theme.current().error;
   }
 });
 

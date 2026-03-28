@@ -3,40 +3,42 @@
 // ─────────────────────────────────────────────
 
 import { EventBus }       from './core/EventBus.js';
+import { Theme }          from './core/Theme.js';
 import { MIDIInput }      from './input/MIDIInput.js';
-import { AudioInput }     from './input/AudioInput.js';
-import { createPitchBridge, detectPitch, freqToNote } from './core/PitchDetector.js';
 import { SongEngine }     from './rhythm/SongEngine.js';
 import { Highway }        from './rhythm/Highway.js';
 import { HitJudge }       from './rhythm/HitJudge.js';
 import { listSongs, getSong } from './rhythm/DemoSongs.js';
 import { MidiParser }        from './rhythm/MidiParser.js';
 import { StaffHighway }      from './rhythm/StaffHighway.js';
+import { FingeringHighway }  from './rhythm/FingeringHighway.js';
 import { Synth }             from './audio/Synth.js';
+import { MidiToNotation }    from './notation/MidiToNotation.js';
+import { SheetRenderer }     from './notation/SheetRenderer.js';
+import { SvgExporter }       from './notation/SvgExporter.js';
 
 // ── Bootstrap ──
 const bus          = new EventBus();
 const midiInput    = new MIDIInput(bus);
-const audioInput   = new AudioInput(bus);
 const engine       = new SongEngine(bus);
 const synth        = new Synth();
 const canvas       = document.getElementById('highway-canvas');
-const highway      = new Highway(canvas, bus);
-const staffHighway = new StaffHighway(canvas, bus);
+const highway          = new Highway(canvas, bus);
+const staffHighway     = new StaffHighway(canvas, bus);
+const fingeringHighway = new FingeringHighway(canvas, bus);
 const judge        = new HitJudge(bus, engine);
 
 // ── View mode ──
-let viewMode = 'piano';  // 'piano' | 'staff'
+let viewMode = 'piano';
 function activeHighway() {
-  return viewMode === 'staff' ? staffHighway : highway;
+  if (viewMode === 'staff') return staffHighway;
+  if (viewMode.startsWith('fingering-')) return fingeringHighway;
+  return highway;
 }
 
 // ── DOM refs ──
 const midiStatus   = document.getElementById('midi-status');
-const audioStatus  = document.getElementById('audio-status');
-const micBtn       = document.getElementById('btn-mic');
 const deviceSelect = document.getElementById('midi-device-select');
-const detectedEl   = document.getElementById('detected-pitch');
 const songSelect   = document.getElementById('song-select');
 const songBpmEl    = document.getElementById('song-bpm');
 const scoreEl      = document.getElementById('score');
@@ -52,19 +54,15 @@ const noteButtons  = document.querySelectorAll('.note-btn');
 const resultsDiv   = document.getElementById('results');
 const backdrop     = document.getElementById('backdrop');
 const resultsClose = document.getElementById('results-close');
-const viewBtns     = document.querySelectorAll('.view-btn');
+const viewSelect   = document.getElementById('view-select');
 const masterVolEl  = document.getElementById('master-vol');
 const metDialEl    = document.getElementById('met-dial');
 const beatIndicator = document.getElementById('beat-indicator');
 
-// ── View toggle ──
-viewBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    viewMode = btn.dataset.view;
-    viewBtns.forEach(b => b.classList.toggle('active', b.dataset.view === viewMode));
-    // Re-draw current frame in new mode
-    activeHighway().draw(engine.position, engine.notes);
-  });
+// ── View select ──
+viewSelect.addEventListener('change', () => {
+  viewMode = viewSelect.value;
+  activeHighway().draw(engine.position, engine.notes);
 });
 
 // ── Playback controls ──
@@ -86,7 +84,7 @@ function drawMetDial(v) {
   ctx.beginPath();
   ctx.arc(w / 2, h / 2, r, 0.75 * Math.PI, 0.25 * Math.PI);
   ctx.lineWidth = 3;
-  ctx.strokeStyle = '#2a2a2a';
+  ctx.strokeStyle = Theme.current().controlBorder;
   ctx.stroke();
 
   // Value arc
@@ -95,7 +93,7 @@ function drawMetDial(v) {
   ctx.beginPath();
   ctx.arc(w / 2, h / 2, r, startAngle, endAngle);
   ctx.lineWidth = 3;
-  ctx.strokeStyle = v > 0 ? '#00ff88' : '#333';
+  ctx.strokeStyle = v > 0 ? Theme.current().accent : Theme.current().dimText;
   ctx.stroke();
 
   // Pointer dot
@@ -103,7 +101,7 @@ function drawMetDial(v) {
   const py = h / 2 + r * Math.sin(endAngle);
   ctx.beginPath();
   ctx.arc(px, py, 3, 0, Math.PI * 2);
-  ctx.fillStyle = '#e0e0e0';
+  ctx.fillStyle = Theme.current().text;
   ctx.fill();
 }
 
@@ -151,9 +149,10 @@ function loadSelectedSong() {
     ? `${song.bpm} BPM (${noteCount} notes)`
     : `${song.bpm} BPM`;
   engine.load(song);
-  // Pass timing info to both renderers for beat/bar lines
+  // Pass timing info to all renderers for beat/bar lines
   highway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
   staffHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
+  fingeringHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
   judge.reset();
   updateScoreUI();
 }
@@ -217,6 +216,7 @@ function applyMidiTrack(parsed, trackIndex) {
   engine.load(customSong);
   highway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
   staffHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
+  fingeringHighway.setSongInfo(engine.bpm, engine.meter, engine.countIn);
   judge.reset();
   updateScoreUI();
   buildBeatPips();
@@ -254,12 +254,76 @@ midiUpload.addEventListener('change', async () => {
     }
 
     applyMidiTrack(parsed, -1);
+
+    // Show sheet music buttons
+    const viewSheetBtn = document.getElementById('view-sheet-btn');
+    const exportSvgBtn = document.getElementById('export-svg-btn');
+    if (viewSheetBtn) viewSheetBtn.style.display = '';
+    if (exportSvgBtn) exportSvgBtn.style.display = '';
   } catch (err) {
     console.error('MIDI parse error:', err);
     midiUploadName.textContent = 'parse error';
     customSong = null;
   }
 });
+
+// ── Sheet music view ──
+const viewSheetBtn = document.getElementById('view-sheet-btn');
+const exportSvgBtn = document.getElementById('export-svg-btn');
+const sheetOverlay = document.getElementById('sheet-overlay');
+const sheetCanvas = document.getElementById('sheet-canvas');
+const closeSheet = document.getElementById('close-sheet');
+
+let _lastSheetCmds = null;
+
+if (viewSheetBtn) {
+  viewSheetBtn.addEventListener('click', () => {
+    if (!_lastParsed) return;
+    const model = MidiToNotation.convert(_lastParsed.notes, {
+      bpm: _lastParsed.bpm,
+      meter: _lastParsed.meter
+    });
+    _lastSheetCmds = SheetRenderer.buildDrawCommands(model);
+    // Size canvas
+    let maxX = 0, maxY = 0;
+    for (const c of _lastSheetCmds) {
+      if (c.x2 !== undefined) maxX = Math.max(maxX, c.x2);
+      if (c.x !== undefined) maxX = Math.max(maxX, c.x + 20);
+      if (c.y !== undefined) maxY = Math.max(maxY, c.y);
+      if (c.y2 !== undefined) maxY = Math.max(maxY, c.y2);
+    }
+    sheetCanvas.width = Math.max(maxX + 40, 400);
+    sheetCanvas.height = Math.max(maxY + 40, 120);
+    const ctx = sheetCanvas.getContext('2d');
+    SheetRenderer.renderToCanvas(ctx, _lastSheetCmds, { printMode: true });
+    sheetOverlay.style.display = '';
+  });
+}
+
+if (closeSheet) {
+  closeSheet.addEventListener('click', () => {
+    sheetOverlay.style.display = 'none';
+  });
+}
+
+if (exportSvgBtn) {
+  exportSvgBtn.addEventListener('click', () => {
+    if (!_lastParsed) return;
+    const model = MidiToNotation.convert(_lastParsed.notes, {
+      bpm: _lastParsed.bpm,
+      meter: _lastParsed.meter
+    });
+    const cmds = SheetRenderer.buildDrawCommands(model);
+    const svg = SvgExporter.toSvg(cmds);
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sheet-music.svg';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
 
 // ── Track selector change ──
 midiTrackSelect.addEventListener('change', () => {
@@ -297,47 +361,6 @@ bus.on('midi:noteOn', ({ note }) => {
     judge.judge(name);
     activeHighway().setLaneActive(name, true);
     setTimeout(() => activeHighway().setLaneActive(name, false), 100);
-  }
-});
-
-// ── Audio / Mic ──
-let micActive  = false;
-let pitchUnsub = null;
-
-micBtn.addEventListener('click', async () => {
-  if (!micActive) await audioInput.start();
-  else audioInput.stop();
-});
-
-bus.on('audio:state', ({ active, error }) => {
-  micActive = active;
-  micBtn.dataset.active = String(active);
-  if (active) {
-    audioStatus.textContent   = 'Listening';
-    audioStatus.dataset.state = 'ok';
-    if (!pitchUnsub) {
-      pitchUnsub = createPitchBridge(bus, { centsThreshold: 25, stabilityCount: 3 });
-    }
-  } else {
-    audioStatus.textContent   = error ? 'Mic error' : '';
-    audioStatus.dataset.state = error ? 'err' : '';
-    detectedEl.textContent    = '';
-    detectedEl.dataset.hearing = 'false';
-    if (pitchUnsub) { pitchUnsub(); pitchUnsub = null; }
-  }
-});
-
-bus.on('audio:frame', ({ timeDomain, sampleRate }) => {
-  if (!micActive) return;
-  const freq = detectPitch(timeDomain, sampleRate);
-  if (freq) {
-    const { noteName, octave, cents } = freqToNote(freq);
-    const sign = cents >= 0 ? '+' : '';
-    detectedEl.textContent     = `hearing: ${noteName}${octave}  (${sign}${cents}\u00A2)`;
-    detectedEl.dataset.hearing = 'true';
-  } else {
-    detectedEl.textContent     = 'hearing: \u2014';
-    detectedEl.dataset.hearing = 'false';
   }
 });
 
@@ -541,7 +564,6 @@ backLink.addEventListener('click', (e) => {
   e.preventDefault();
   engine.stop();
   clearSynth();
-  audioInput.stop();
   window.location.href = backLink.href;
 });
 

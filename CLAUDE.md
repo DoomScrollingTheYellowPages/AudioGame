@@ -74,10 +74,10 @@ All canvas modules follow:
 
 ## Game Design Rules
 
-- **Natural notes only** — no sharps/flats in any game mode
-- **Pitch matching is pitch-class only** — any octave of the correct letter counts
-- Music game note buttons and highway lanes: **C D E F G A B ascending** (C at bottom)
-- Keyboard mapping: `a=C s=D d=E f=F g=G h=A j=B`
+- **All 12 chromatic notes** — sharps included in every game mode
+- **Pitch matching is pitch-class only** — any octave of the correct pitch class counts
+- Music game note buttons and highway lanes: **C C# D D# E F F# G G# A A# B ascending** (C at bottom)
+- Keyboard mapping (piano layout): white `a=C s=D d=E f=F g=G h=A j=B`, black `w=C# e=D# t=F# y=G# u=A#`
 - Hit windows: Perfect ≤50ms, Great ≤100ms, Good ≤200ms
 - Combo multiplier: `1 + floor(combo/10)`, max 4x
 

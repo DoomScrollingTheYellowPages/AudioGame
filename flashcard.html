@@ -3,14 +3,46 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Flashcard Game — AudioGame</title>
+  <title>Flashcards — AudioGame</title>
+  <script>
+    (function() {
+      var t = localStorage.getItem('audiogame-theme');
+      if (t !== 'dark' && t !== 'warm' && t !== 'clean') t = 'dark';
+      document.documentElement.className = 'theme-' + t;
+    })();
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    .theme-dark {
+      --bg: #0d0d0d; --text: #e0e0e0; --accent: #00ff88; --error: #ff4444;
+      --control-bg: #1a1a1a; --control-border: #2a2a2a;
+      --font: 'Courier New', monospace;
+      --perfect: #00ff88; --great: #88cc44; --good: #ccaa22; --miss: #ff4444;
+      --dim: #333; --dim2: #444; --dim3: #555; --mid: #888;
+      --card-bg: #141414; --card-border: #222; --card-hover-bg: #161f18;
+    }
+    .theme-warm {
+      --bg: #faf5ef; --text: #3a3330; --accent: #e8863a; --error: #d94444;
+      --control-bg: #f0e8df; --control-border: #d9cfc3;
+      --font: 'Nunito', 'Segoe UI', sans-serif;
+      --perfect: #4caf50; --great: #8bc34a; --good: #ffc107; --miss: #d94444;
+      --dim: #bfb3a4; --dim2: #a89888; --dim3: #8a7d70; --mid: #6b5f53;
+      --card-bg: #f0e8df; --card-border: #d9cfc3; --card-hover-bg: #e8dfd4;
+    }
+    .theme-clean {
+      --bg: #ffffff; --text: #212121; --accent: #1976d2; --error: #c62828;
+      --control-bg: #f5f5f5; --control-border: #e0e0e0;
+      --font: 'Inter', 'Helvetica Neue', sans-serif;
+      --perfect: #1976d2; --great: #42a5f5; --good: #ffa726; --miss: #c62828;
+      --dim: #bdbdbd; --dim2: #9e9e9e; --dim3: #757575; --mid: #616161;
+      --card-bg: #f5f5f5; --card-border: #e0e0e0; --card-hover-bg: #eeeeee;
+    }
+
     body {
-      background: #0d0d0d;
-      color: #e0e0e0;
-      font-family: 'Courier New', monospace;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
       font-size: 13px;
       min-height: 100dvh;
       display: flex;
@@ -31,21 +63,21 @@
     }
 
     .back-link {
-      color: #555;
+      color: var(--dim3);
       text-decoration: none;
       font-size: 12px;
-      border: 1px solid #222;
+      border: 1px solid var(--card-border);
       border-radius: 4px;
       padding: 4px 10px;
       transition: color 0.2s, border-color 0.2s;
     }
-    .back-link:hover { color: #00ff88; border-color: #00ff88; }
+    .back-link:hover { color: var(--accent); border-color: var(--accent); }
 
     .page-title {
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 2px;
-      color: #444;
+      color: var(--dim2);
     }
 
     .input-status {
@@ -54,56 +86,24 @@
       align-items: center;
     }
 
-    #midi-status, #audio-status {
+    #midi-status {
       font-size: 10px;
-      color: #333;
+      color: var(--dim);
       letter-spacing: 1px;
     }
-    #midi-status[data-state="ok"],
-    #audio-status[data-state="ok"]   { color: #00ff88; }
-    #midi-status[data-state="err"],
-    #audio-status[data-state="err"]  { color: #ff4444; }
+    #midi-status[data-state="ok"] { color: var(--accent); }
+    #midi-status[data-state="err"] { color: var(--error); }
 
     #midi-device-select {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #888;
+      background: var(--control-bg);
+      border: 1px solid var(--control-border);
+      color: var(--mid);
       font-family: inherit;
       font-size: 10px;
       padding: 2px 6px;
       border-radius: 4px;
       max-width: 140px;
     }
-
-    /* ── Mic toggle ── */
-    #btn-mic {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #555;
-      font-family: inherit;
-      font-size: 11px;
-      padding: 3px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      letter-spacing: 1px;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    #btn-mic:hover { border-color: #00ff88; color: #00ff88; }
-    #btn-mic[data-active="true"] {
-      border-color: #00ff88;
-      color: #00ff88;
-    }
-
-    /* ── Detected pitch display ── */
-    #detected-pitch {
-      height: 20px;
-      font-size: 11px;
-      color: #444;
-      text-align: center;
-      letter-spacing: 1px;
-      margin-bottom: 4px;
-    }
-    #detected-pitch[data-hearing="true"] { color: #00ff88; }
 
     /* ── Score bar ── */
     .score-bar {
@@ -113,17 +113,17 @@
       gap: 24px;
       padding-bottom: 16px;
       font-size: 12px;
-      color: #444;
+      color: var(--dim2);
     }
-    #score  { color: #e0e0e0; }
-    #streak { color: #888; }
+    #score  { color: var(--text); }
+    #streak { color: var(--mid); }
 
     /* ── Staff canvas ── */
     .staff-wrap {
       width: 100%;
       max-width: 600px;
-      background: #141414;
-      border: 1px solid #222;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
       border-radius: 8px;
       overflow: hidden;
       margin-bottom: 20px;
@@ -141,56 +141,74 @@
       font-size: 14px;
       font-weight: bold;
       letter-spacing: 1px;
-      color: #444;
+      color: var(--dim2);
       margin-bottom: 20px;
       text-align: center;
       transition: color 0.15s;
     }
-    #feedback[data-state="correct"] { color: #00ff88; }
-    #feedback[data-state="wrong"]   { color: #ff4444; }
+    #feedback[data-state="correct"] { color: var(--accent); }
+    #feedback[data-state="wrong"]   { color: var(--error); }
 
     /* ── Note buttons ── */
     .prompt {
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 2px;
-      color: #333;
+      color: var(--dim);
       margin-bottom: 12px;
       text-align: center;
     }
 
     .note-buttons {
+      position: relative;
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-bottom: 20px;
+      gap: 3px;
+      width: 100%;
+      max-width: 400px;
+      height: 72px;
+      margin: 0 auto 20px;
     }
 
     .note-btn {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #888;
+      flex: 1;
+      background: var(--control-bg);
+      border: 1px solid var(--control-border);
+      color: var(--mid);
       font-family: inherit;
       font-size: 13px;
       font-weight: bold;
-      width: 46px;
-      height: 52px;
-      border-radius: 6px;
+      border-radius: 0 0 6px 6px;
       cursor: pointer;
       letter-spacing: 0;
       transition: border-color 0.15s, color 0.15s, background 0.15s;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 5px;
     }
     .note-btn[data-black="true"] {
+      position: absolute;
+      top: 0;
+      width: 12%;
+      height: 55%;
       background: #111;
-      color: #555;
-      height: 44px;
+      border: 1px solid var(--control-border);
+      color: var(--dim3);
       font-size: 11px;
+      border-radius: 0 0 4px 4px;
+      z-index: 1;
+      align-items: flex-end;
+      padding-bottom: 3px;
     }
+    .note-btn[data-note="C#"] { left: 8.5%;  }
+    .note-btn[data-note="D#"] { left: 22.5%; }
+    .note-btn[data-note="F#"] { left: 51%;   }
+    .note-btn[data-note="G#"] { left: 65%;   }
+    .note-btn[data-note="A#"] { left: 79.5%; }
     .note-btn:hover {
-      border-color: #00ff88;
-      color: #00ff88;
-      background: #161f18;
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--card-hover-bg);
     }
     .note-btn:active {
       background: #0f1a12;
@@ -199,9 +217,9 @@
     /* ── Next button ── */
     #btn-next {
       display: none;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #aaa;
+      background: var(--control-bg);
+      border: 1px solid var(--dim);
+      color: var(--mid);
       font-family: inherit;
       font-size: 12px;
       padding: 8px 24px;
@@ -210,14 +228,14 @@
       letter-spacing: 1px;
       transition: border-color 0.2s, color 0.2s;
     }
-    #btn-next:hover { border-color: #00ff88; color: #00ff88; }
+    #btn-next:hover { border-color: var(--accent); color: var(--accent); }
 
     /* ── Legend ── */
     .legend {
       margin-top: 40px;
       width: 100%;
       max-width: 600px;
-      border-top: 1px solid #1a1a1a;
+      border-top: 1px solid var(--control-bg);
       padding-top: 20px;
     }
 
@@ -225,7 +243,7 @@
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 2px;
-      color: #2a2a2a;
+      color: var(--control-border);
       margin-bottom: 10px;
     }
 
@@ -234,14 +252,40 @@
       grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
       gap: 4px;
       font-size: 10px;
-      color: #2a2a2a;
+      color: var(--control-border);
     }
 
     .legend-item {
       display: flex;
       gap: 6px;
     }
-    .legend-note { color: #333; min-width: 28px; }
+    .legend-note { color: var(--dim); min-width: 28px; }
+
+    /* ── Representation select ── */
+    .repr-bar {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .repr-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--dim);
+    }
+    #repr-select {
+      background: var(--control-bg);
+      border: 1px solid var(--control-border);
+      color: var(--mid);
+      font-family: inherit;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
 
     /* ── Play-note button ── */
     #btn-play-note {
@@ -251,9 +295,9 @@
       width: 41px;
       height: 41px;
       border-radius: 50%;
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #555;
+      background: var(--control-bg);
+      border: 1px solid var(--control-border);
+      color: var(--dim3);
       font-size: 19px;
       cursor: pointer;
       display: flex;
@@ -263,11 +307,23 @@
       line-height: 1;
     }
     #btn-play-note:hover {
-      border-color: #00ff88;
-      color: #00ff88;
-      background: #161f18;
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--card-hover-bg);
     }
     #btn-play-note:active { background: #0f1a12; }
+
+    .input-config-link {
+      color: var(--dim2);
+      text-decoration: none;
+      font-size: 10px;
+      border: 1px solid var(--card-border);
+      border-radius: 4px;
+      padding: 3px 8px;
+      letter-spacing: 1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .input-config-link:hover { color: var(--accent); border-color: var(--accent); }
   </style>
 </head>
 <body>
@@ -275,28 +331,41 @@
   <!-- ── Header ── -->
   <header class="page-header">
     <a class="back-link" href="./index.html">← Back</a>
-    <span class="page-title">Note Reading</span>
+    <span class="page-title">Flashcards</span>
     <div class="input-status">
       <span id="midi-status">MIDI —</span>
       <select id="midi-device-select"><option>— no devices —</option></select>
-      <button id="btn-mic" data-active="false">🎤 Mic</button>
-      <span id="audio-status"></span>
+      <a class="input-config-link" href="./input-config.html">⚙</a>
     </div>
   </header>
 
-  <!-- ── Score ── -->
+  <!-- ── Clef selector ── -->
   <div class="score-bar">
+    <label>Clef:
+      <select id="clef-select">
+        <option value="treble">Treble</option>
+        <option value="bass">Bass</option>
+        <option value="both">Both</option>
+      </select>
+    </label>
+    <span style="flex:1"></span>
     <span id="score">0 / 0  (0%)</span>
     <span id="streak">streak  0</span>
+  </div>
+
+  <!-- ── Representation ── -->
+  <div class="repr-bar">
+    <span class="repr-label">View:</span>
+    <select id="repr-select">
+      <option value="staff">Staff Notation</option>
+      <option value="fingering">Oboe Fingering</option>
+    </select>
   </div>
 
   <!-- ── Staff ── -->
   <div class="staff-wrap">
     <canvas id="staff-canvas" width="560" height="200"></canvas>
   </div>
-
-  <!-- ── Detected pitch (mic) ── -->
-  <div id="detected-pitch"></div>
 
   <!-- ── Feedback ── -->
   <div id="feedback" data-state=""></div>

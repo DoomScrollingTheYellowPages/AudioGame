@@ -3,14 +3,46 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Music Game — AudioGame</title>
+  <title>MidiHero — AudioGame</title>
+  <script>
+    (function() {
+      var t = localStorage.getItem('audiogame-theme');
+      if (t !== 'dark' && t !== 'warm' && t !== 'clean') t = 'dark';
+      document.documentElement.className = 'theme-' + t;
+    })();
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    .theme-dark {
+      --bg: #0d0d0d; --text: #e0e0e0; --accent: #00ff88; --error: #ff4444;
+      --control-bg: #1a1a1a; --control-border: #2a2a2a;
+      --font: 'Courier New', monospace;
+      --perfect: #00ff88; --great: #88cc44; --good: #ccaa22; --miss: #ff4444;
+      --dim: #333; --dim2: #444; --dim3: #555; --mid: #888;
+      --card-bg: #141414; --card-border: #222; --card-hover-bg: #161f18;
+    }
+    .theme-warm {
+      --bg: #faf5ef; --text: #3a3330; --accent: #e8863a; --error: #d94444;
+      --control-bg: #f0e8df; --control-border: #d9cfc3;
+      --font: 'Nunito', 'Segoe UI', sans-serif;
+      --perfect: #4caf50; --great: #8bc34a; --good: #ffc107; --miss: #d94444;
+      --dim: #bfb3a4; --dim2: #a89888; --dim3: #8a7d70; --mid: #6b5f53;
+      --card-bg: #f0e8df; --card-border: #d9cfc3; --card-hover-bg: #e8dfd4;
+    }
+    .theme-clean {
+      --bg: #ffffff; --text: #212121; --accent: #1976d2; --error: #c62828;
+      --control-bg: #f5f5f5; --control-border: #e0e0e0;
+      --font: 'Inter', 'Helvetica Neue', sans-serif;
+      --perfect: #1976d2; --great: #42a5f5; --good: #ffa726; --miss: #c62828;
+      --dim: #bdbdbd; --dim2: #9e9e9e; --dim3: #757575; --mid: #616161;
+      --card-bg: #f5f5f5; --card-border: #e0e0e0; --card-hover-bg: #eeeeee;
+    }
+
     body {
-      background: #0d0d0d;
-      color: #e0e0e0;
-      font-family: 'Courier New', monospace;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
       font-size: 13px;
       min-height: 100dvh;
       display: flex;
@@ -31,21 +63,21 @@
     }
 
     .back-link {
-      color: #555;
+      color: var(--dim3);
       text-decoration: none;
       font-size: 12px;
-      border: 1px solid #222;
+      border: 1px solid var(--card-border);
       border-radius: 4px;
       padding: 4px 10px;
       transition: color 0.2s, border-color 0.2s;
     }
-    .back-link:hover { color: #00ff88; border-color: #00ff88; }
+    .back-link:hover { color: var(--accent); border-color: var(--accent); }
 
     .page-title {
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 2px;
-      color: #444;
+      color: var(--dim2);
     }
 
     .input-status {
@@ -54,41 +86,24 @@
       align-items: center;
     }
 
-    #midi-status, #audio-status {
+    #midi-status {
       font-size: 10px;
-      color: #333;
+      color: var(--dim);
       letter-spacing: 1px;
     }
-    #midi-status[data-state="ok"],
-    #audio-status[data-state="ok"]   { color: #00ff88; }
-    #midi-status[data-state="err"],
-    #audio-status[data-state="err"]  { color: #ff4444; }
+    #midi-status[data-state="ok"] { color: var(--accent); }
+    #midi-status[data-state="err"] { color: var(--error); }
 
     #midi-device-select {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #888;
+      background: var(--control-bg);
+      border: 1px solid var(--control-border);
+      color: var(--mid);
       font-family: inherit;
       font-size: 10px;
       padding: 2px 6px;
       border-radius: 4px;
       max-width: 140px;
     }
-
-    #btn-mic {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #555;
-      font-family: inherit;
-      font-size: 11px;
-      padding: 3px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      letter-spacing: 1px;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    #btn-mic:hover { border-color: #00ff88; color: #00ff88; }
-    #btn-mic[data-active="true"] { border-color: #00ff88; color: #00ff88; }
 
     /* ── Song info bar ── */
     .song-bar {
@@ -99,58 +114,72 @@
       align-items: center;
       padding-bottom: 12px;
       font-size: 11px;
-      color: #555;
+      color: var(--dim3);
     }
-    .song-bar .song-name { color: #888; font-weight: bold; }
-    .song-bar .bpm { color: #555; }
+    .song-bar .song-name { color: var(--mid); font-weight: bold; }
+    .song-bar .bpm { color: var(--dim3); }
 
     #song-select {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #888;
+      background: var(--control-bg);
+      border: 1px solid var(--control-border);
+      color: var(--mid);
       font-family: inherit;
       font-size: 11px;
       padding: 3px 8px;
       border-radius: 4px;
     }
 
-    .bar-sep { color: #2a2a2a; }
+    .bar-sep { color: var(--control-border); }
 
-    /* ── View toggle ── */
-    .view-toggle {
-      display: flex;
-      gap: 0;
+    /* ── View select ── */
+    .view-select-wrap {
       margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-    .view-btn {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #555;
+    .view-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--dim);
+    }
+    #view-select {
+      background: var(--control-bg);
+      border: 1px solid var(--control-border);
+      color: var(--mid);
       font-family: inherit;
-      font-size: 10px;
-      padding: 2px 10px;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
       cursor: pointer;
-      letter-spacing: 1px;
-      transition: color 0.2s, border-color 0.2s, background 0.2s;
     }
-    .view-btn:first-child { border-radius: 4px 0 0 4px; }
-    .view-btn:last-child  { border-radius: 0 4px 4px 0; border-left: none; }
-    .view-btn.active      { background: #1a2e1e; border-color: #00ff88; color: #00ff88; }
-    .view-btn:not(.active):hover { color: #aaa; border-color: #444; }
+
+    .input-config-link {
+      color: var(--dim2);
+      text-decoration: none;
+      font-size: 10px;
+      border: 1px solid var(--card-border);
+      border-radius: 4px;
+      padding: 3px 8px;
+      letter-spacing: 1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .input-config-link:hover { color: var(--accent); border-color: var(--accent); }
 
     .midi-upload-label {
-      color: #555;
+      color: var(--dim3);
       cursor: pointer;
       font-size: 11px;
-      border: 1px solid #2a2a2a;
+      border: 1px solid var(--control-border);
       padding: 2px 8px;
       border-radius: 4px;
       transition: color 0.2s, border-color 0.2s;
     }
-    .midi-upload-label:hover { color: #00ff88; border-color: #00ff88; }
+    .midi-upload-label:hover { color: var(--accent); border-color: var(--accent); }
 
     .midi-file-name {
-      color: #00ff88;
+      color: var(--accent);
       font-size: 10px;
       max-width: 160px;
       overflow: hidden;
@@ -160,9 +189,9 @@
 
     #midi-track-select {
       display: none;
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #00ff88;
+      background: var(--control-bg);
+      border: 1px solid var(--control-border);
+      color: var(--accent);
       font-family: inherit;
       font-size: 10px;
       padding: 2px 6px;
@@ -180,7 +209,7 @@
       align-items: center;
       padding-bottom: 10px;
       font-size: 10px;
-      color: #555;
+      color: var(--dim3);
       letter-spacing: 1px;
     }
 
@@ -195,7 +224,7 @@
       appearance: none;
       width: 80px;
       height: 4px;
-      background: #2a2a2a;
+      background: var(--control-border);
       border-radius: 2px;
       outline: none;
     }
@@ -204,14 +233,14 @@
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background: #00ff88;
+      background: var(--accent);
       cursor: pointer;
     }
     .vol-slider::-moz-range-thumb {
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background: #00ff88;
+      background: var(--accent);
       border: none;
       cursor: pointer;
     }
@@ -241,11 +270,11 @@
       gap: 20px;
       padding-bottom: 8px;
       font-size: 12px;
-      color: #444;
+      color: var(--dim2);
     }
-    #score       { color: #e0e0e0; }
-    #combo       { color: #888; }
-    #accuracy    { color: #555; }
+    #score       { color: var(--text); }
+    #combo       { color: var(--mid); }
+    #accuracy    { color: var(--dim3); }
 
     /* ── Beat indicator ── */
     .beat-indicator {
@@ -260,14 +289,14 @@
     .beat-indicator .beat-pip {
       flex: 1;
       border-radius: 2px;
-      background: #1a1a1a;
+      background: var(--control-bg);
       transition: background 0.05s;
     }
     .beat-indicator .beat-pip.active {
-      background: #00ff88;
+      background: var(--accent);
     }
     .beat-indicator .beat-pip.active.accent {
-      background: #00ff88;
+      background: var(--accent);
       box-shadow: 0 0 6px rgba(0, 255, 136, 0.4);
     }
     .beat-indicator .beat-pip.past {
@@ -278,8 +307,8 @@
     .highway-wrap {
       width: 100%;
       max-width: 800px;
-      background: #0d0d0d;
-      border: 1px solid #222;
+      background: var(--bg);
+      border: 1px solid var(--card-border);
       border-radius: 8px;
       overflow: hidden;
       margin-bottom: 8px;
@@ -297,70 +326,78 @@
       font-size: 18px;
       font-weight: bold;
       letter-spacing: 2px;
-      color: #333;
+      color: var(--dim);
       text-align: center;
       transition: color 0.1s;
       line-height: 32px;
     }
-    #hit-feedback.perfect { color: #00ff88; }
-    #hit-feedback.great   { color: #88cc44; }
-    #hit-feedback.good    { color: #ccaa22; }
-    #hit-feedback.miss    { color: #ff4444; }
-
-    /* ── Detected pitch display ── */
-    #detected-pitch {
-      height: 18px;
-      font-size: 11px;
-      color: #444;
-      text-align: center;
-      letter-spacing: 1px;
-    }
-    #detected-pitch[data-hearing="true"] { color: #00ff88; }
+    #hit-feedback.perfect { color: var(--perfect); }
+    #hit-feedback.great   { color: var(--great); }
+    #hit-feedback.good    { color: var(--good); }
+    #hit-feedback.miss    { color: var(--miss); }
 
     /* ── Note buttons ── */
     .prompt {
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 2px;
-      color: #333;
+      color: var(--dim);
       margin-bottom: 8px;
       text-align: center;
     }
 
     .note-buttons {
+      position: relative;
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-bottom: 16px;
+      gap: 3px;
+      width: 100%;
+      max-width: 400px;
+      height: 72px;
+      margin: 0 auto 16px;
     }
 
     .note-btn {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #888;
+      flex: 1;
+      background: var(--control-bg);
+      border: 1px solid var(--control-border);
+      color: var(--mid);
       font-family: inherit;
       font-size: 13px;
       font-weight: bold;
-      width: 46px;
-      height: 52px;
-      border-radius: 6px;
+      border-radius: 0 0 6px 6px;
       cursor: pointer;
       letter-spacing: 0;
       transition: border-color 0.15s, color 0.15s, background 0.15s;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 5px;
     }
     .note-btn[data-black="true"] {
+      position: absolute;
+      top: 0;
+      width: 12%;
+      height: 55%;
       background: #111;
-      color: #555;
-      height: 44px;
+      border: 1px solid var(--control-border);
+      color: var(--dim3);
       font-size: 11px;
+      border-radius: 0 0 4px 4px;
+      z-index: 1;
+      align-items: flex-end;
+      padding-bottom: 3px;
     }
-    .note-btn:hover { border-color: #00ff88; color: #00ff88; background: #161f18; }
+    .note-btn[data-note="C#"] { left: 8.5%;  }
+    .note-btn[data-note="D#"] { left: 22.5%; }
+    .note-btn[data-note="F#"] { left: 51%;   }
+    .note-btn[data-note="G#"] { left: 65%;   }
+    .note-btn[data-note="A#"] { left: 79.5%; }
+    .note-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--card-hover-bg); }
     .note-btn:active { background: #0f1a12; }
 
     .keyboard-hint {
       font-size: 9px;
-      color: #333;
+      color: var(--dim);
       text-align: center;
       margin-top: -10px;
       margin-bottom: 12px;
@@ -378,8 +415,8 @@
 
     .transport-btn {
       background: #1e1e1e;
-      border: 1px solid #2a2a2a;
-      color: #aaa;
+      border: 1px solid var(--control-border);
+      color: var(--mid);
       font-family: inherit;
       font-size: 16px;
       width: 44px;
@@ -393,17 +430,17 @@
       padding: 0;
       line-height: 1;
     }
-    .transport-btn:hover           { background: #2a2a2a; color: #e0e0e0; }
-    .transport-btn:active          { background: #333; }
-    #btn-play.playing              { background: #0d1f14; color: #00ff88; border-color: #00ff88; }
+    .transport-btn:hover           { background: var(--control-border); color: var(--text); }
+    .transport-btn:active          { background: var(--dim); }
+    #btn-play.playing              { background: #0d1f14; color: var(--accent); border-color: var(--accent); }
 
     /* ── Results overlay ── */
     #results {
       display: none;
       width: 100%;
       max-width: 400px;
-      background: #141414;
-      border: 1px solid #333;
+      background: var(--card-bg);
+      border: 1px solid var(--dim);
       border-radius: 12px;
       padding: 28px;
       text-align: center;
@@ -418,7 +455,7 @@
       font-size: 16px;
       text-transform: uppercase;
       letter-spacing: 3px;
-      color: #00ff88;
+      color: var(--accent);
       margin-bottom: 20px;
     }
     .result-row {
@@ -426,20 +463,20 @@
       justify-content: space-between;
       padding: 6px 0;
       font-size: 12px;
-      border-bottom: 1px solid #1a1a1a;
+      border-bottom: 1px solid var(--control-bg);
     }
-    .result-row .label { color: #555; }
-    .result-row .value { color: #e0e0e0; }
-    .result-row .value.perfect { color: #00ff88; }
-    .result-row .value.great { color: #88cc44; }
-    .result-row .value.good { color: #ccaa22; }
-    .result-row .value.miss { color: #ff4444; }
+    .result-row .label { color: var(--dim3); }
+    .result-row .value { color: var(--text); }
+    .result-row .value.perfect { color: var(--perfect); }
+    .result-row .value.great { color: var(--great); }
+    .result-row .value.good { color: var(--good); }
+    .result-row .value.miss { color: var(--miss); }
 
     #results-close {
       margin-top: 20px;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #aaa;
+      background: var(--control-bg);
+      border: 1px solid var(--dim);
+      color: var(--mid);
       font-family: inherit;
       font-size: 12px;
       padding: 8px 24px;
@@ -447,7 +484,7 @@
       cursor: pointer;
       letter-spacing: 1px;
     }
-    #results-close:hover { border-color: #00ff88; color: #00ff88; }
+    #results-close:hover { border-color: var(--accent); color: var(--accent); }
 
     /* ── Backdrop ── */
     #backdrop {
@@ -464,7 +501,7 @@
       width: 100%;
       max-width: 800px;
       height: 3px;
-      background: #1a1a1a;
+      background: var(--control-bg);
       border-radius: 2px;
       margin-bottom: 10px;
       overflow: hidden;
@@ -472,7 +509,7 @@
     #progress-bar {
       height: 100%;
       width: 0%;
-      background: #00ff88;
+      background: var(--accent);
       transition: width 0.1s linear;
     }
   </style>
@@ -482,12 +519,11 @@
   <!-- ── Header ── -->
   <header class="page-header">
     <a class="back-link" href="./index.html">&larr; Back</a>
-    <span class="page-title">Music Game</span>
+    <span class="page-title">MidiHero</span>
     <div class="input-status">
       <span id="midi-status">MIDI &mdash;</span>
       <select id="midi-device-select"><option>&mdash; no devices &mdash;</option></select>
-      <button id="btn-mic" data-active="false">&#127908; Mic</button>
-      <span id="audio-status"></span>
+      <a class="input-config-link" href="./input-config.html">&#9881;</a>
     </div>
   </header>
 
@@ -500,10 +536,28 @@
     <input type="file" id="midi-upload" accept=".mid,.midi" hidden />
     <span id="midi-upload-name" class="midi-file-name"></span>
     <select id="midi-track-select"></select>
-    <div class="view-toggle">
-      <button class="view-btn active" data-view="piano">&#127929; Piano</button>
-      <button class="view-btn"        data-view="staff">&#119070; Staff</button>
+    <button id="view-sheet-btn" class="midi-upload-label" style="display:none" title="View as sheet music">&#119070; Sheet</button>
+    <button id="export-svg-btn" class="midi-upload-label" style="display:none" title="Download SVG">&#11015; SVG</button>
+    <div class="view-select-wrap">
+      <span class="view-label">View:</span>
+      <select id="view-select">
+        <option value="piano">&#127929; Piano Roll</option>
+        <option value="staff">&#119070; Staff</option>
+        <option value="fingering-oboe">&#9835; Oboe</option>
+        <option value="fingering-flute">&#9835; Flute</option>
+        <option value="fingering-clarinet">&#9835; Clarinet</option>
+        <option value="fingering-trumpet">&#9835; Trumpet</option>
+        <option value="fingering-sax">&#9835; Alto Sax</option>
+        <option value="fingering-piano">&#127929; Piano Keys</option>
+        <option value="fingering-guitar">&#127928; Guitar Tab</option>
+      </select>
     </div>
+  </div>
+
+  <!-- ── Sheet music overlay ── -->
+  <div id="sheet-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:100; overflow:auto; padding:20px;">
+    <button id="close-sheet" style="position:fixed; top:10px; right:20px; background:var(--control-bg); color:var(--text); border:1px solid var(--control-border); border-radius:4px; padding:6px 14px; cursor:pointer; z-index:101;">Close</button>
+    <canvas id="sheet-canvas" style="background:#fff; display:block; margin:0 auto;"></canvas>
   </div>
 
   <!-- ── Playback controls ── -->
@@ -541,9 +595,6 @@
 
   <!-- ── Hit feedback ── -->
   <div id="hit-feedback"></div>
-
-  <!-- ── Detected pitch (mic) ── -->
-  <div id="detected-pitch"></div>
 
   <!-- ── Transport ── -->
   <div class="transport">

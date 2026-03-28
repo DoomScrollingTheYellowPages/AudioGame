@@ -25,7 +25,7 @@ export class SongEngine {
     this._running = false;
     this._rafId = null;
     this._songDuration = 0;   // ms total
-    this._countIn = 0;        // no count-in (debug)
+    this._countIn = 0;
     this._lastBeat = -1;      // track which beat we last fired
   }
 
@@ -37,6 +37,10 @@ export class SongEngine {
     this._bpm = song.bpm;
     this._meter = song.meter || [4, 4];
     this._lastBeat = -1;
+    // Count-in = 2 bars of current time signature and tempo
+    const beatsPerBar = this._meter[0] * (4 / this._meter[1]);
+    const msPerBeat = 60000 / this._bpm;
+    this._countIn = 2 * beatsPerBar * msPerBeat;
     // Shift all note times forward by countIn so player has visual lead time
     this._notes = song.notes.map(n => ({
       ...n,

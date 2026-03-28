@@ -1,0 +1,8 @@
+{
+  "track_id": "midi_to_sheet_20260325",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-03-25T06:15:49Z",
+  "updated_at": "2026-03-25T06:15:49Z",
+  "description": "Convert loaded MIDI files into rendered sheet music notation with SVG export"
+}
