@@ -52,5 +52,10 @@ This file tracks all major tracks for the project. Each track has its own detail
 ## [x] Track: MidiParser & HitJudge Test Coverage
 *Link: [./conductor/tracks/rhythm_coverage_20260328/](./conductor/tracks/rhythm_coverage_20260328/)*
 
+---
+
+## [x] Track: EventBus & utils Test Coverage
+*Link: [./conductor/tracks/core_coverage_20260328/](./conductor/tracks/core_coverage_20260328/)*
+
 
 
