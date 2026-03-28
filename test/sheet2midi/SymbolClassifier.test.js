@@ -108,6 +108,45 @@ describe('SymbolClassifier', () => {
       });
       assert.equal(sc.classifyHeuristic(c), SymbolType.UNKNOWN);
     });
+
+    // ── Brace ──────────────────────────────────
+    it('classifies a grand staff brace (tall narrow curve on left margin)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      // Brace: spans both staves, very tall, narrow, low fill (just the curve strokes)
+      const c = fakeComponent({
+        aspectRatio: 0.08, fillRatio: 0.18, widthSS: 0.6, heightSS: 8.5, holes: 0,
+        centroid: { x: 15, y: 200 }
+      });
+      assert.equal(sc.classifyHeuristic(c), SymbolType.BRACE);
+    });
+
+    it('does not classify a bar line as a brace (too short)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      const c = fakeComponent({
+        aspectRatio: 0.05, fillRatio: 0.9, widthSS: 0.08, heightSS: 4.0, holes: 0
+      });
+      assert.notEqual(sc.classifyHeuristic(c), SymbolType.BRACE);
+    });
+
+    it('does not classify a stem as a brace (too high fill, too short)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      const c = fakeComponent({
+        aspectRatio: 0.1, fillRatio: 0.9, widthSS: 0.15, heightSS: 3.0, holes: 0
+      });
+      assert.notEqual(sc.classifyHeuristic(c), SymbolType.BRACE);
+    });
+
+    it('does not classify a treble clef as a brace (too short, wrong aspect)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      const c = fakeComponent({
+        aspectRatio: 0.35, fillRatio: 0.35, widthSS: 1.2, heightSS: 4.5, holes: 1
+      });
+      assert.notEqual(sc.classifyHeuristic(c), SymbolType.BRACE);
+    });
   });
 
   // ── classify (batch) ───────────────────────

@@ -21,6 +21,7 @@ export const SymbolType = {
   FLAG_SIXTEENTH: 'flag_sixteenth',
   CLEF_TREBLE: 'clef_treble',
   CLEF_BASS: 'clef_bass',
+  BRACE: 'brace',
   TIME_SIG: 'time_sig',
   SHARP: 'sharp',
   FLAT: 'flat',
@@ -54,6 +55,14 @@ const RULES = [
       && c.widthSS >= 0.8 && c.widthSS <= 3.0
       && c.aspectRatio >= 0.6 && c.aspectRatio <= 1.5
       && c.fillRatio >= 0.3
+  },
+  // ── Grand staff brace (check before bar_line/stem — taller than both) ──
+  {
+    type: SymbolType.BRACE,
+    test: (c) => c.heightSS >= 6.0
+      && c.widthSS >= 0.3 && c.widthSS <= 1.5
+      && c.aspectRatio < 0.25
+      && c.fillRatio < 0.35
   },
   // ── Tall thin symbols ──
   {

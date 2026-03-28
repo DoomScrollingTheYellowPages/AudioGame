@@ -2,15 +2,15 @@
 
 ## Phase 1: Brace Symbol Detection
 
-- [ ] Task: Write failing test — `SymbolClassifier` labels a tall left-margin arc as `brace`
-  - [ ] Add `brace` case to `SymbolType` enum in `SymbolClassifier.js`
-  - [ ] Create synthetic component features matching a brace (heightSS ≥ 6.0, widthSS 0.3–1.5, fillRatio < 0.35, aspectRatio < 0.25, x < 3×staffSpace)
-  - [ ] Assert `classify()` returns `type: 'brace'` for that component
-  - [ ] Assert existing non-brace symbols are not misclassified as brace
-- [ ] Task: Implement `brace` classification rule in `SymbolClassifier`
-  - [ ] Add `BRACE` to `SymbolType`
-  - [ ] Add rule to `classify()` with the specified feature thresholds
-  - [ ] Confirm test goes green
+- [x] Task: Write failing test — `SymbolClassifier` labels a tall left-margin arc as `brace`
+  - [x] Add `brace` case to `SymbolType` enum in `SymbolClassifier.js`
+  - [x] Create synthetic component features matching a brace (heightSS ≥ 6.0, widthSS 0.3–1.5, fillRatio < 0.35, aspectRatio < 0.25, x < 3×staffSpace)
+  - [x] Assert `classify()` returns `type: 'brace'` for that component
+  - [x] Assert existing non-brace symbols are not misclassified as brace
+- [x] Task: Implement `brace` classification rule in `SymbolClassifier`
+  - [x] Add `BRACE` to `SymbolType`
+  - [x] Add rule to `classify()` with the specified feature thresholds
+  - [x] Confirm test goes green
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Brace Symbol Detection' (Protocol in workflow.md)
 
 ## Phase 2: Grand Staff Pair Detection
