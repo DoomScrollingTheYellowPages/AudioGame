@@ -114,22 +114,27 @@ describe('PitchMapper', () => {
       assert.equal(pm.detectClef(symbols, staffGroup), 'treble');
     });
 
-    it('detects bass clef from symbols', () => {
+    it('detects bass clef from symbols (centroid in upper staff region)', () => {
       const bus = new MockBus();
       const pm = new PitchMapper(bus);
-      const staffGroup = [100, 110, 120, 130, 140];
+      const staffGroup = [100, 110, 120, 130, 140]; // staffHeight=40, staffCenter=120
+      // Bass clef centroid should be in the upper third of the staff (< staffCenter - 10%)
+      // placing it at y=105 (upper portion, not at center)
       const symbols = [{
         type: SymbolType.CLEF_BASS,
-        component: { centroid: { x: 20, y: 120 } }
+        component: {
+          centroid: { x: 20, y: 105 },
+          bbox: { x: 10, y: 100, width: 20, height: 20 } // height=20 < 60% of staffHeight=40
+        }
       }];
       assert.equal(pm.detectClef(symbols, staffGroup), 'bass');
     });
 
-    it('defaults to treble when no clef found', () => {
+    it('defaults to bass when no clef found (single-staff fallback)', () => {
       const bus = new MockBus();
       const pm = new PitchMapper(bus);
       const staffGroup = [100, 110, 120, 130, 140];
-      assert.equal(pm.detectClef([], staffGroup), 'treble');
+      assert.equal(pm.detectClef([], staffGroup), 'bass');
     });
   });
 
@@ -282,6 +287,102 @@ describe('PitchMapper', () => {
       pm.applyAccidentals(notes, keySig, inlineMap);
       assert.equal(notes[0].midiNote, 65); // unchanged
       assert.equal(notes[0].noteName, 'F'); // no sharp appended
+    });
+  });
+
+  // ── _buildClefMap (grand staff pairing cascade) ──────────────────────
+  describe('_buildClefMap', () => {
+    const SS = 12; // staffSpace in pixels
+
+    /** Build a staff group: 5 lines starting at topY, separated by SS px */
+    function makeGroup(topY) {
+      return [topY, topY + SS, topY + 2*SS, topY + 3*SS, topY + 4*SS];
+    }
+
+    /** Build a brace symbol spanning from y0 to y1 at x=10 */
+    function makeBrace(y0, y1) {
+      const height = y1 - y0;
+      const width = 7;
+      return {
+        type: SymbolType.BRACE,
+        component: {
+          bbox: { x: 5, y: y0, width, height },
+          centroid: { x: 8, y: (y0 + y1) / 2 },
+          heightSS: height / SS,
+          widthSS: width / SS
+        }
+      };
+    }
+
+    it('pairs two staves via brace detection (primary path)', () => {
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const upper = makeGroup(10);   // lines y=10..58
+      const lower = makeGroup(100);  // lines y=100..148
+      // Brace spans y=10..148 (100% of combined staff height)
+      const brace = makeBrace(10, 148);
+      const clefMap = pm._buildClefMap([upper, lower], SS, [brace]);
+      assert.equal(clefMap.get(upper), 'treble', 'upper staff should be treble');
+      assert.equal(clefMap.get(lower), 'bass',   'lower staff should be bass');
+    });
+
+    it('records detection method as "brace" on the clefMap', () => {
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const upper = makeGroup(10);
+      const lower = makeGroup(100);
+      const brace = makeBrace(10, 148);
+      const clefMap = pm._buildClefMap([upper, lower], SS, [brace]);
+      assert.equal(clefMap.get(upper), 'treble');
+      assert.equal(clefMap.get(lower), 'bass');
+      // Method should be stored so callers can distinguish brace vs gap pairing
+      assert.equal(pm._lastPairingMethod, 'brace');
+    });
+
+    it('pairs via gap threshold when no brace is present (secondary path)', () => {
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const upper = makeGroup(10);
+      // Gap = lower[0] - upper[4] = 80 - 58 = 22px = ~1.8ss (< 8ss threshold)
+      const lower = makeGroup(80);
+      const clefMap = pm._buildClefMap([upper, lower], SS, []);
+      assert.equal(clefMap.get(upper), 'treble');
+      assert.equal(clefMap.get(lower), 'bass');
+      assert.equal(pm._lastPairingMethod, 'gap');
+    });
+
+    it('pairs first two staves as fallback when gap is large and no brace (tertiary)', () => {
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const upper = makeGroup(10);
+      // Gap = 500 - 58 = 442px >> 8×SS=96, so gap threshold won't fire
+      const lower = makeGroup(500);
+      const clefMap = pm._buildClefMap([upper, lower], SS, []);
+      assert.equal(clefMap.get(upper), 'treble');
+      assert.equal(clefMap.get(lower), 'bass');
+      assert.equal(pm._lastPairingMethod, 'fallback');
+    });
+
+    it('does not pair a single staff', () => {
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const solo = makeGroup(10);
+      const clefMap = pm._buildClefMap([solo], SS, []);
+      assert.equal(clefMap.size, 0, 'single staff should not be paired');
+    });
+
+    it('brace present → gap method is skipped (close staves but brace wins)', () => {
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const upper = makeGroup(10);
+      const lower = makeGroup(70);
+      // Add a brace — even though staves are close enough for gap threshold,
+      // brace should be the recorded method
+      const brace = makeBrace(10, 118);
+      const clefMap = pm._buildClefMap([upper, lower], SS, [brace]);
+      assert.equal(clefMap.get(upper), 'treble');
+      assert.equal(clefMap.get(lower), 'bass');
+      assert.equal(pm._lastPairingMethod, 'brace');
     });
   });
 });

@@ -258,31 +258,76 @@ export class PitchMapper {
   }
 
   /**
-   * Detect grand staff pairs (treble+bass) from staff groups.
-   * Two consecutive groups whose gap is smaller than 3× staffSpace
-   * are considered a grand staff pair.
+   * Detect grand staff pairs (treble+bass) from staff groups using a cascade:
+   *   1. Brace symbol detection (primary — most reliable)
+   *   2. Gap threshold < 8×staffSpace (secondary)
+   *   3. First-two-staves fallback (tertiary — only when exactly 2 staves)
+   *
    * @param {number[][]} staffGroups
    * @param {number} staffSpace
+   * @param {Array<{type: string, component: object}>} [symbols]
    * @returns {Map<number[], 'treble'|'bass'>} clef map per group
    */
-  _buildClefMap(staffGroups, staffSpace) {
+  _buildClefMap(staffGroups, staffSpace, symbols = []) {
     const clefMap = new Map();
     const used = new Set();
 
-    for (let i = 0; i < staffGroups.length - 1; i++) {
-      if (used.has(i)) continue;
-      const gapBetween = staffGroups[i + 1][0] - staffGroups[i][4];
-      // Grand staff pair: gap between bottom of upper and top of lower
-      // is typically 1.5–3× staffSpace
-      if (gapBetween < staffSpace * 8 && gapBetween > 0) {
-        clefMap.set(staffGroups[i], 'treble');
-        clefMap.set(staffGroups[i + 1], 'bass');
-        used.add(i);
-        used.add(i + 1);
+    // ── Primary: brace detection ───────────────────────────────────────────
+    const braceSymbols = symbols.filter(s => s.type === SymbolType.BRACE);
+
+    if (braceSymbols.length > 0) {
+      for (let i = 0; i < staffGroups.length - 1; i++) {
+        if (used.has(i)) continue;
+        const upper = staffGroups[i];
+        const lower = staffGroups[i + 1];
+        const combinedTop    = upper[0];
+        const combinedBottom = lower[4];
+        const combinedHeight = combinedBottom - combinedTop;
+
+        // Look for a brace that spans ≥ 80% of the combined staff height
+        const matchingBrace = braceSymbols.find(b => {
+          const by0 = b.component.bbox.y;
+          const by1 = b.component.bbox.y + b.component.bbox.height;
+          const overlap = Math.min(by1, combinedBottom) - Math.max(by0, combinedTop);
+          return overlap >= combinedHeight * 0.8;
+        });
+
+        if (matchingBrace) {
+          clefMap.set(upper, 'treble');
+          clefMap.set(lower, 'bass');
+          used.add(i);
+          used.add(i + 1);
+          this._lastPairingMethod = 'brace';
+          console.log(`[OMR] Grand staff pair (brace): groups ${i} & ${i+1}`);
+        }
       }
     }
 
-    // Log grand staff detection
+    // ── Secondary: gap threshold ───────────────────────────────────────────
+    if (clefMap.size === 0) {
+      for (let i = 0; i < staffGroups.length - 1; i++) {
+        if (used.has(i)) continue;
+        const gapBetween = staffGroups[i + 1][0] - staffGroups[i][4];
+        if (gapBetween < staffSpace * 8 && gapBetween > 0) {
+          clefMap.set(staffGroups[i], 'treble');
+          clefMap.set(staffGroups[i + 1], 'bass');
+          used.add(i);
+          used.add(i + 1);
+          this._lastPairingMethod = 'gap';
+          console.log(`[OMR] Grand staff pair (gap=${gapBetween.toFixed(0)}px): groups ${i} & ${i+1}`);
+        }
+      }
+    }
+
+    // ── Tertiary: first-two fallback ───────────────────────────────────────
+    if (clefMap.size === 0 && staffGroups.length === 2) {
+      clefMap.set(staffGroups[0], 'treble');
+      clefMap.set(staffGroups[1], 'bass');
+      this._lastPairingMethod = 'fallback';
+      console.log(`[OMR] Grand staff pair (fallback): first two staves paired`);
+    }
+
+    // Log summary
     console.log(`[OMR] PitchMapper: ${staffGroups.length} staff groups, ${clefMap.size} assigned via grand staff pairs`);
     for (let i = 0; i < staffGroups.length; i++) {
       const g = staffGroups[i];
@@ -467,8 +512,8 @@ export class PitchMapper {
       SymbolType.WHOLE_NOTE
     ]);
 
-    // Build clef map using grand staff pair detection
-    const clefMap = this._buildClefMap(staffGroups, staffSpace);
+    // Build clef map using grand staff pair detection (cascade: brace → gap → fallback)
+    const clefMap = this._buildClefMap(staffGroups, staffSpace, symbols);
 
     const notes = [];
 
@@ -502,7 +547,9 @@ export class PitchMapper {
     for (const n of notes) {
       const c = n.symbol.component;
       const src = c._splitFrom ? 'SPLIT' : 'orig';
-      console.log(`[OMR] Note: ${n.noteName}${n.octave}(${n.midiNote}) staffPos=${n.staffPos} clef=${n.clef} x=${Math.round(n.x)} y=${Math.round(c.centroid.y)} bbox=${c.bbox.x},${c.bbox.y} ${c.bbox.width}x${c.bbox.height} wSS=${c.widthSS.toFixed(2)} hSS=${c.heightSS.toFixed(2)} [${src}]`);
+      const wss = c.widthSS != null ? c.widthSS.toFixed(2) : '?';
+      const hss = c.heightSS != null ? c.heightSS.toFixed(2) : '?';
+      console.log(`[OMR] Note: ${n.noteName}${n.octave}(${n.midiNote}) staffPos=${n.staffPos} clef=${n.clef} x=${Math.round(n.x)} y=${Math.round(c.centroid.y)} bbox=${c.bbox.x},${c.bbox.y} ${c.bbox.width}x${c.bbox.height} wSS=${wss} hSS=${hss} [${src}]`);
     }
 
     // Detect key signature per staff group and apply accidentals

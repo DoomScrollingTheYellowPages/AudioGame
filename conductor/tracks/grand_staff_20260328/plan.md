@@ -15,20 +15,20 @@
 
 ## Phase 2: Grand Staff Pair Detection
 
-- [ ] Task: Write failing tests — `_buildClefMap` cascade (brace → gap → first-two)
-  - [ ] Test: two staves with a brace symbol → paired, brace method used
-  - [ ] Test: two staves close vertically, no brace → paired by gap threshold
-  - [ ] Test: two staves, no brace, gap too large → paired by first-two fallback
-  - [ ] Test: single staff → not paired, falls through to NCC detection
-  - [ ] Test: brace present → gap and fallback logic are skipped entirely
-- [ ] Task: Implement cascade pairing in `PitchMapper._buildClefMap`
-  - [ ] Accept `symbols` as an argument alongside `staffGroups` and `staffSpace`
-  - [ ] Primary: scan for `brace` symbol spanning ≥ 80% of combined staff height
-  - [ ] Secondary: existing gap < 8×staffSpace heuristic (when no brace found)
-  - [ ] Tertiary: first-two-staves fallback (when neither brace nor gap fires)
-  - [ ] Brace match sets upper=treble, lower=bass and skips remaining methods
-  - [ ] Update `assignPitches` call site to pass `symbols` to `_buildClefMap`
-  - [ ] Confirm all tests green
+- [x] Task: Write failing tests — `_buildClefMap` cascade (brace → gap → first-two)
+  - [x] Test: two staves with a brace symbol → paired, brace method used
+  - [x] Test: two staves close vertically, no brace → paired by gap threshold
+  - [x] Test: two staves, no brace, gap too large → paired by first-two fallback
+  - [x] Test: single staff → not paired, falls through to NCC detection
+  - [x] Test: brace present → gap and fallback logic are skipped entirely
+- [x] Task: Implement cascade pairing in `PitchMapper._buildClefMap`
+  - [x] Accept `symbols` as an argument alongside `staffGroups` and `staffSpace`
+  - [x] Primary: scan for `brace` symbol spanning ≥ 80% of combined staff height
+  - [x] Secondary: existing gap < 8×staffSpace heuristic (when no brace found)
+  - [x] Tertiary: first-two-staves fallback (when neither brace nor gap fires)
+  - [x] Brace match sets upper=treble, lower=bass and skips remaining methods
+  - [x] Update `assignPitches` call site to pass `symbols` to `_buildClefMap`
+  - [x] Confirm all tests green
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Grand Staff Pair Detection' (Protocol in workflow.md)
 
 ## Phase 3: Multi-Track MIDI Output
