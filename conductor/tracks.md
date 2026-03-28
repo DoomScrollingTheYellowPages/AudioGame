@@ -24,12 +24,12 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [ ] Track: OMR Validation & Ground Truth Testing
+## [x] Track: OMR Validation & Ground Truth Testing
 *Link: [./conductor/tracks/omr_validation_20260328/](./conductor/tracks/omr_validation_20260328/)*
 
 ---
 
-## [ ] Track: Bass Staff Support (OMR Pipeline)
+## [x] Track: Bass Staff Support (OMR Pipeline)
 *Link: [./conductor/tracks/bass_staff_20260328/](./conductor/tracks/bass_staff_20260328/)*
 
 
