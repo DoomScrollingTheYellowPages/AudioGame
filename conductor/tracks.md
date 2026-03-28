@@ -39,7 +39,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: More Demo Songs
+## [x] Track: More Demo Songs
 *Link: [./conductor/tracks/more_songs_20260328/](./conductor/tracks/more_songs_20260328/)*
 
 
