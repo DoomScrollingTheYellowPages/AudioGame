@@ -55,6 +55,7 @@ let selectedFile = null;
 let lastMidiBuffer = null;
 let pdfDoc = null;
 let pdfPage = 1;
+let _clefDetections = []; // captured per-run from omr:clef-detected events
 
 // ── PDF.js lazy loader ─────────────────────────
 
@@ -218,6 +219,7 @@ processBtn.addEventListener('click', async () => {
   errorMsg.classList.remove('active');
   correctionsLog.classList.remove('active');
   overlay.reset();
+  _clefDetections = [];
 
   const bpm = parseInt(bpmInput.value, 10) || 120;
   const [num, den] = timeSigSelect.value.split('/').map(Number);
@@ -293,6 +295,10 @@ bus.on('omr:progress', ({ stage, name }) => {
   progressText.textContent = `Stage ${stage}/11: ${name}`;
 });
 
+bus.on('omr:clef-detected', (data) => {
+  _clefDetections.push(data);
+});
+
 // ── Pipeline Debug Overlay ──────────────────────
 
 bus.on('omr:debug', (stepData) => {
@@ -350,11 +356,34 @@ function renderDebugResults(result, fileName) {
 
   let html = '';
 
-  // Staff info
+  // ── Staff Detection ────────────────────────────────────────────────────────
   html += '<h4>Staff Detection</h4>';
-  html += `<p>Groups: ${result.staffInfo.groups.length}, staffSpace: ${result.staffInfo.staffSpace}px, lineThick: ${result.staffInfo.lineThickness}px</p>`;
+  html += `<p>Groups: ${result.staffInfo.groups.length} | staffSpace: ${result.staffInfo.staffSpace}px | lineThick: ${result.staffInfo.lineThickness}px</p>`;
 
-  // Notes table
+  // ── Clef Detection ─────────────────────────────────────────────────────────
+  html += '<h4>Clef Detection</h4>';
+  const clefOverrideVal = clefSelect.value || null;
+  if (clefOverrideVal) {
+    html += `<p><strong>Override active:</strong> ${clefOverrideVal} (auto-detection skipped)</p>`;
+  } else if (_clefDetections.length === 0) {
+    html += `<p class="mismatch">No clef detection events received — clef may have come from grand-staff pairing or override.</p>`;
+  } else {
+    html += '<table><tr><th>#</th><th>Clef Used</th><th>Method</th><th>Treble NCC</th><th>Bass NCC</th></tr>';
+    _clefDetections.forEach((d, i) => {
+      const tScore = d.trebleNCC != null ? d.trebleNCC.toFixed(3) : '—';
+      const bScore = d.bassNCC  != null ? d.bassNCC.toFixed(3)  : '—';
+      html += `<tr>`;
+      html += `<td>${i + 1}</td>`;
+      html += `<td><strong>${d.clef}</strong></td>`;
+      html += `<td>${d.method}</td>`;
+      html += `<td>${tScore}</td>`;
+      html += `<td>${bScore}</td>`;
+      html += `</tr>`;
+    });
+    html += '</table>';
+  }
+
+  // ── Detected Notes ─────────────────────────────────────────────────────────
   html += '<h4>Detected Notes</h4>';
   if (expected) {
     html += `<p class="debug-expected">Expected: ${expected.notes.join(', ')} (MIDI: ${expected.midi.join(', ')})</p>`;
@@ -383,7 +412,7 @@ function renderDebugResults(result, fileName) {
   }
   html += '</table>';
 
-  // Summary
+  // ── Note Accuracy Summary ──────────────────────────────────────────────────
   const noteCount = notes.length;
   const expectedCount = expected ? expected.notes.length : '?';
   let correctCount = 0;
@@ -396,24 +425,59 @@ function renderDebugResults(result, fileName) {
     }
   }
   html += '<h4>Summary</h4>';
-  html += `<p>Notes: ${noteCount}/${expectedCount}`;
+  html += `<p>Notes detected: ${noteCount}/${expectedCount}`;
   if (expected) {
     const pct = expectedCount > 0 ? Math.round(correctCount / expectedCount * 100) : 0;
     html += ` | Correct: <span class="${pct === 100 ? 'match' : 'mismatch'}">${correctCount}/${expectedCount} (${pct}%)</span>`;
   }
   html += '</p>';
 
-  // Symbols breakdown
-  html += '<h4>All Symbols</h4>';
+  // ── Symbol Breakdown ───────────────────────────────────────────────────────
+  // Group symbols into categories rather than a raw flat list
+  const SYMBOL_GROUPS = {
+    'Noteheads': ['filled_notehead', 'open_notehead', 'whole_note'],
+    'Rests': ['whole_rest', 'half_rest', 'quarter_rest', 'eighth_rest'],
+    'Clefs': ['clef_treble', 'clef_bass'],
+    'Structure': ['bar_line', 'double_bar', 'time_sig', 'brace'],
+    'Accidentals': ['sharp', 'flat', 'natural'],
+    'Augmentation': ['dot', 'double_dot'],
+    'Flags & Beams': ['flag', 'beam', 'stem'],
+    'Unknown': ['unknown']
+  };
+
+  const allCounted = new Set();
+  html += '<h4>Symbols by Category</h4>';
+  html += '<table><tr><th>Category</th><th>Type</th><th>Count</th></tr>';
+
   const typeCounts = {};
   for (const s of result.symbols) typeCounts[s.type] = (typeCounts[s.type] || 0) + 1;
-  html += '<table><tr><th>Type</th><th>Count</th></tr>';
-  for (const [type, count] of Object.entries(typeCounts).sort()) {
-    html += `<tr><td>${type}</td><td>${count}</td></tr>`;
+
+  for (const [groupName, types] of Object.entries(SYMBOL_GROUPS)) {
+    const relevant = types.filter(t => typeCounts[t] > 0);
+    if (relevant.length === 0) continue;
+    const groupTotal = relevant.reduce((acc, t) => acc + typeCounts[t], 0);
+    html += `<tr><td><strong>${groupName}</strong></td><td></td><td><strong>${groupTotal}</strong></td></tr>`;
+    for (const t of relevant) {
+      html += `<tr><td></td><td>${t}</td><td>${typeCounts[t]}</td></tr>`;
+      allCounted.add(t);
+    }
+  }
+
+  // Any types not in our groups (future-proofing)
+  const uncategorized = Object.entries(typeCounts).filter(([t]) => !allCounted.has(t));
+  if (uncategorized.length > 0) {
+    html += `<tr><td><strong>Other</strong></td><td></td><td></td></tr>`;
+    for (const [t, cnt] of uncategorized) {
+      html += `<tr><td></td><td>${t}</td><td>${cnt}</td></tr>`;
+    }
   }
   html += '</table>';
 
-  // Corrections
+  // Note: clef_treble/clef_bass in the Symbols table above is what the SymbolClassifier
+  // labelled based on shape features. The actual clef used for pitch mapping is shown
+  // separately in "Clef Detection" above — these may differ when NCC overrides the label.
+
+  // ── Corrections ───────────────────────────────────────────────────────────
   if (result.corrections.length > 0) {
     html += '<h4>Corrections</h4>';
     for (const c of result.corrections) html += `<p>${c}</p>`;

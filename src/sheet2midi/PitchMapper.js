@@ -50,10 +50,16 @@ export class PitchMapper {
     // Primary: NCC template matching — finds the clef regardless of what nearby
     // objects the symbol classifier may have mislabelled.
     if (binary && staffSpace > 0) {
-      const nccClef = this._detectClefByNCC(binary, imgWidth, staffGroup, staffSpace);
-      if (nccClef) {
-        console.log(`[OMR] Clef detected by NCC: ${nccClef}`);
-        return nccClef;
+      const nccResult = this._detectClefByNCC(binary, imgWidth, staffGroup, staffSpace);
+      if (nccResult) {
+        console.log(`[OMR] Clef detected by NCC: ${nccResult.clef} (treble=${nccResult.trebleScore.toFixed(3)} bass=${nccResult.bassScore.toFixed(3)})`);
+        this._bus.emit('omr:clef-detected', {
+          clef: nccResult.clef,
+          method: 'ncc',
+          trebleNCC: nccResult.trebleScore,
+          bassNCC: nccResult.bassScore
+        });
+        return nccResult.clef;
       }
     }
     // Fallback: symbol-label-based heuristics (less reliable, retained for edge cases)
@@ -92,26 +98,27 @@ export class PitchMapper {
     if (clefCandidates.length > 0) {
       // If we have explicit treble, use it
       const treble = clefCandidates.find(s => s.type === SymbolType.CLEF_TREBLE);
-      if (treble) return 'treble';
+      if (treble) {
+        this._bus.emit('omr:clef-detected', { clef: 'treble', method: 'symbol' });
+        return 'treble';
+      }
 
-      // If classified as bass, double-check using positional heuristics:
-      // A treble clef's centroid sits near the middle/lower portion of the staff
-      // and it spans most of the staff height. A bass clef sits in the upper half.
+      // If classified as bass, double-check using positional heuristics
       const bass = clefCandidates.find(s => s.type === SymbolType.CLEF_BASS);
       if (bass) {
         const compHeight = bass.component.bbox.height;
         const compCenterY = bass.component.centroid.y;
-        // If the "bass" component spans >= 60% of staff height, it's likely treble
         if (compHeight >= staffHeight * 0.6) {
           console.log(`[OMR] Clef reclassification: bass→treble (height ${compHeight} >= 60% of staff ${staffHeight})`);
+          this._bus.emit('omr:clef-detected', { clef: 'treble', method: 'symbol-reclassified' });
           return 'treble';
         }
-        // If centroid is near the staff center or below, it's likely treble
-        // (bass clef centroid should be in the upper third of the staff)
         if (compCenterY >= staffCenter - staffHeight * 0.1) {
           console.log(`[OMR] Clef reclassification: bass→treble (centroid ${compCenterY.toFixed(0)} at/below staff center ${staffCenter.toFixed(0)})`);
+          this._bus.emit('omr:clef-detected', { clef: 'treble', method: 'symbol-reclassified' });
           return 'treble';
         }
+        this._bus.emit('omr:clef-detected', { clef: 'bass', method: 'symbol' });
         return 'bass';
       }
     }
@@ -126,7 +133,6 @@ export class PitchMapper {
       const cx = c.centroid.x;
       if (cx >= firstNoteX) continue;
       if (cy < topLine - staffHeight * 0.5 || cy > bottomLine + staffHeight * 0.5) continue;
-      // Must be a substantial symbol (not a dot or tiny fragment)
       if (c.heightSS < 2.0 || c.widthSS < 0.5) continue;
       if (cx < bestClefX) {
         bestClefX = cx;
@@ -138,12 +144,14 @@ export class PitchMapper {
       const compHeight = bestClefCandidate.bbox.height;
       if (compHeight >= staffHeight * 0.5) {
         console.log(`[OMR] Clef inferred as treble from large left component (height ${compHeight}, staff ${staffHeight})`);
+        this._bus.emit('omr:clef-detected', { clef: 'treble', method: 'size-heuristic' });
         return 'treble';
       }
     }
 
     // Default to bass for single-staff scores
     console.log(`[OMR] Clef defaulting to bass (no clef symbol found)`);
+    this._bus.emit('omr:clef-detected', { clef: 'bass', method: 'default' });
     return 'bass';
     } // end fallback block
   }
@@ -563,7 +571,7 @@ export class PitchMapper {
 
     const THRESHOLD = 0.25;
     if (trebleScore < THRESHOLD && bassScore < THRESHOLD) return null;
-    return trebleScore >= bassScore ? 'treble' : 'bass';
+    return { clef: trebleScore >= bassScore ? 'treble' : 'bass', trebleScore, bassScore };
   }
 
   /**
