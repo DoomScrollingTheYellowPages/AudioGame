@@ -44,7 +44,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: OMR Note Deduplication
+## [x] Track: OMR Note Deduplication
 *Link: [./conductor/tracks/omr_dedup_20260328/](./conductor/tracks/omr_dedup_20260328/)*
 
 
