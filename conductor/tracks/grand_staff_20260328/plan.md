@@ -1,6 +1,6 @@
 # Plan: Grand Staff OMR Support
 
-## Phase 1: Brace Symbol Detection
+## Phase 1: Brace Symbol Detection [checkpoint: 592acaa]
 
 - [x] Task: Write failing test — `SymbolClassifier` labels a tall left-margin arc as `brace`
   - [x] Add `brace` case to `SymbolType` enum in `SymbolClassifier.js`
@@ -13,7 +13,7 @@
   - [x] Confirm test goes green
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Brace Symbol Detection' (Protocol in workflow.md)
 
-## Phase 2: Grand Staff Pair Detection
+## Phase 2: Grand Staff Pair Detection [checkpoint: 592acaa]
 
 - [x] Task: Write failing tests — `_buildClefMap` cascade (brace → gap → first-two)
   - [x] Test: two staves with a brace symbol → paired, brace method used
@@ -31,7 +31,7 @@
   - [x] Confirm all tests green
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Grand Staff Pair Detection' (Protocol in workflow.md)
 
-## Phase 3: Multi-Track MIDI Output
+## Phase 3: Multi-Track MIDI Output [checkpoint: 592acaa]
 
 - [x] Task: Write failing test — `MidiWriter` produces Format 1 two-track MIDI
   - [x] Call `MidiWriter` with two note arrays (treble notes, bass notes)
@@ -50,7 +50,7 @@
   - [x] Single-staff path unchanged
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Multi-Track MIDI Output' (Protocol in workflow.md)
 
-## Phase 4: UI — Grand Staff Default
+## Phase 4: UI — Grand Staff Default [checkpoint: 592acaa]
 
 - [x] Task: Write failing test — clef selector default is "Grand Staff (Auto)"
   - [x] Assert `clef-select` element has `value = 'grand'` on page load (verified via HTML)
@@ -66,7 +66,7 @@
   - [x] When `options.clef` is `null`/`''`, single-staff NCC detection (grandStaffMode=false)
 - [x] Task: Conductor - User Manual Verification 'Phase 4: UI — Grand Staff Default' (Protocol in workflow.md)
 
-## Phase 5: Test Fixtures and Validation
+## Phase 5: Test Fixtures and Validation [checkpoint: 592acaa]
 
 - [x] Task: Author expected JSON for user-supplied `grandstaffmono` fixture(s)
   - [x] Receive image files from user
