@@ -520,6 +520,10 @@ export class PitchMapper {
     for (const s of symbols) {
       if (!noteTypes.has(s.type)) continue;
 
+      // Skip noteheads in the clef region — bass clef dots and treble clef body
+      // can look like filled noteheads but are never valid notes
+      if (staffSpace > 0 && s.component.centroid.x < staffSpace * 4) continue;
+
       // Find which staff group this note belongs to
       const group = this._findStaffGroup(s.component.centroid.y, staffGroups, staffSpace);
       if (!group) continue;

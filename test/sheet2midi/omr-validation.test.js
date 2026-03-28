@@ -37,7 +37,8 @@ const TEST_OBJECTS = resolve(REPO_ROOT, 'TestObjects');
  */
 function runPipeline(imagePath, options = {}) {
   const timeSig = options.timeSig ?? [4, 4];
-  const clefOverride = options.clef ?? null;
+  // 'grand' enables automatic grand-staff pairing — not a clef override
+  const clefOverride = (options.clef === 'grand' || !options.clef) ? null : options.clef;
 
   const bus = new MockBus();
   const imageProcessor = new ImageProcessor(bus);
@@ -155,13 +156,15 @@ function runPipeline(imagePath, options = {}) {
   const bars = interiorBarlines + 1;
   const totalBeats = bars * timeSig[0];
 
-  // Normalize notes for comparison: { note, name, beats }
+  // Normalize notes for comparison: { note, name, beats, track? }
+  // track: 1=treble, 2=bass (matches OMREngine buildMultiTrack track order)
   const normalizedNotes = validatedNotes
     .sort((a, b) => a.x - b.x)
     .map(n => ({
       note: n.midiNote,
       name: `${n.noteName}${n.octave}`,
-      beats: n.beats
+      beats: n.beats,
+      track: n.clef === 'treble' ? 1 : n.clef === 'bass' ? 2 : undefined
     }));
 
   return { notes: normalizedNotes, bars, totalBeats };
@@ -329,6 +332,15 @@ function validateFixture(name) {
     assert.equal(sum, expected.totalBeats,
       `Sum of beats = ${sum}, expected ${expected.totalBeats}`);
   });
+
+  if (expected.clef === 'grand') {
+    it(`${name}: track assignment matches (treble=1, bass=2)`, () => {
+      const got = result.notes.map(n => n.track);
+      const exp = expected.notes.map(n => n.track);
+      assert.deepEqual(got, exp,
+        `Track mismatch.\nExpected: ${exp.join(', ')}\nGot:      ${got.join(', ')}`);
+    });
+  }
 }
 
 // ── Test suites ───────────────────────────────
@@ -343,4 +355,8 @@ describe('OMR Validation: AMinorScale', () => {
 
 describe('OMR Validation: BassStaffScale', () => {
   validateFixture('BassStaffScale');
+});
+
+describe('OMR Validation: grandstaffmono1', () => {
+  validateFixture('grandstaffmono1');
 });

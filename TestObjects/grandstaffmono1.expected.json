@@ -1,0 +1,28 @@
+{
+  "image": "grandstaffmono1.png",
+  "clef": "grand",
+  "notes": [
+    { "note": 43, "name": "G2", "beats": 1, "track": 2 },
+    { "note": 45, "name": "A2", "beats": 1, "track": 2 },
+    { "note": 47, "name": "B2", "beats": 1, "track": 2 },
+    { "note": 48, "name": "C3", "beats": 1, "track": 2 },
+    { "note": 50, "name": "D3", "beats": 1, "track": 2 },
+    { "note": 52, "name": "E3", "beats": 1, "track": 2 },
+    { "note": 53, "name": "F3", "beats": 1, "track": 2 },
+    { "note": 55, "name": "G3", "beats": 1, "track": 2 },
+    { "note": 57, "name": "A3", "beats": 1, "track": 2 },
+    { "note": 59, "name": "B3", "beats": 1, "track": 2 },
+    { "note": 62, "name": "D4", "beats": 1, "track": 1 },
+    { "note": 64, "name": "E4", "beats": 1, "track": 1 },
+    { "note": 65, "name": "F4", "beats": 1, "track": 1 },
+    { "note": 67, "name": "G4", "beats": 1, "track": 1 },
+    { "note": 69, "name": "A4", "beats": 1, "track": 1 },
+    { "note": 71, "name": "B4", "beats": 1, "track": 1 },
+    { "note": 72, "name": "C5", "beats": 1, "track": 1 },
+    { "note": 74, "name": "D5", "beats": 1, "track": 1 },
+    { "note": 76, "name": "E5", "beats": 1, "track": 1 },
+    { "note": 77, "name": "F5", "beats": 1, "track": 1 }
+  ],
+  "bars": 1,
+  "totalBeats": 20
+}
