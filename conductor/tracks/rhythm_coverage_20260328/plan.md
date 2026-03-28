@@ -26,7 +26,7 @@ Ensure all 10 tests pass.
 
 ## Phase 2: HitJudge Tests [checkpoint: ]
 
-### Task 2.1: Write failing HitJudge tests (Red) [ ]
+### Task 2.1: Write failing HitJudge tests (Red) [x]
 Create `test/rhythm/HitJudge.test.js` with 10 tests covering:
 - Perfect tier (≤50ms)
 - Great tier (≤100ms)
@@ -41,7 +41,7 @@ Create `test/rhythm/HitJudge.test.js` with 10 tests covering:
 
 Run tests → confirm all fail (HitJudge requires engine mock).
 
-### Task 2.2: Implement HitJudge tests with engine mock (Green) [ ]
+### Task 2.2: Implement HitJudge tests with engine mock (Green) [x]
 Build a minimal `MockEngine` that returns a fixed note list and current position.
 Ensure all 10 HitJudge tests pass.
 
@@ -49,7 +49,7 @@ Ensure all 10 HitJudge tests pass.
 
 ## Phase 3: Synth Tests [checkpoint: ]
 
-### Task 3.1: Write Synth unit tests (Red) [ ]
+### Task 3.1: Write Synth unit tests (Red) [x]
 Create `test/audio/Synth.test.js` with 4 tests:
 - midiToFreq(69) = 440
 - midiToFreq(60) ≈ 261.63
@@ -57,7 +57,7 @@ Create `test/audio/Synth.test.js` with 4 tests:
 - allNotesOff on empty Synth does not throw
 Mock `window.AudioContext` → confirm tests fail first.
 
-### Task 3.2: Implement Synth tests with AudioContext mock (Green) [ ]
+### Task 3.2: Implement Synth tests with AudioContext mock (Green) [x]
 Provide a lightweight `window.AudioContext` mock via globalThis in the test file.
 Ensure all 4 tests pass.
 
