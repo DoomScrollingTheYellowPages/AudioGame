@@ -89,13 +89,21 @@ describe('SymbolClassifier', () => {
       assert.equal(sc.classifyHeuristic(c), SymbolType.BEAM);
     });
 
-    it('classifies a sharp accidental', () => {
+    it('classifies a sharp accidental (small inline)', () => {
       const bus = new MockBus();
       const sc = new SymbolClassifier(bus);
-      // Sharp must not match rest_quarter (rest: widthSS 0.5-1.5, heightSS 2.0-4.0, aspect 0.25-0.85)
-      // Use widthSS < 0.5 and lower aspect to avoid rest_quarter
       const c = fakeComponent({
-        aspectRatio: 0.35, fillRatio: 0.35, widthSS: 0.45, heightSS: 1.8, holes: 0
+        aspectRatio: 0.35, fillRatio: 0.35, widthSS: 0.6, heightSS: 1.8, holes: 0
+      });
+      assert.equal(sc.classifyHeuristic(c), SymbolType.SHARP);
+    });
+
+    it('classifies a key-sig sharp (larger, previously caught by rest/flag rules)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      // Key-sig sharps span ~2 staff spaces; aspectRatio ~0.45, sparse fill ~0.30
+      const c = fakeComponent({
+        aspectRatio: 0.45, fillRatio: 0.30, widthSS: 0.85, heightSS: 2.1, holes: 0
       });
       assert.equal(sc.classifyHeuristic(c), SymbolType.SHARP);
     });

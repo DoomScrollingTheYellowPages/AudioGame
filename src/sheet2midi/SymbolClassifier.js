@@ -112,29 +112,14 @@ const RULES = [
       && c.heightSS >= 0.6 && c.heightSS <= 1.5
       && c.holes >= 1
   },
-  // ── Rests & flags ──
-  {
-    type: SymbolType.REST_QUARTER,
-    test: (c) => c.aspectRatio >= 0.25 && c.aspectRatio <= 0.85
-      && c.fillRatio >= 0.35 && c.fillRatio <= 0.75
-      && c.widthSS >= 0.5 && c.widthSS <= 1.5
-      && c.heightSS >= 2.0 && c.heightSS <= 4.0
-  },
-  {
-    type: SymbolType.FLAG_EIGHTH,
-    test: (c) => c.aspectRatio >= 0.4 && c.aspectRatio <= 1.2
-      && c.fillRatio >= 0.3 && c.fillRatio <= 0.7
-      && c.widthSS >= 0.4 && c.widthSS <= 1.2
-      && c.heightSS >= 1.0 && c.heightSS <= 2.5
-  },
-  // ── Accidentals ──────────────────────────────
-  // Sharp: tall vertical strokes with horizontal cross-bars, narrow-ish
+  // ── Accidentals (before rests/flags — key-sig sharps at heightSS≥2 overlap) ──
+  // Sharp: two vertical strokes with two horizontal cross-bars; sparse fill (<0.50)
   {
     type: SymbolType.SHARP,
     test: (c) => c.heightSS >= 1.2 && c.heightSS <= 3.0
       && c.widthSS >= 0.4 && c.widthSS <= 1.5
       && c.aspectRatio >= 0.2 && c.aspectRatio <= 0.8
-      && c.fillRatio >= 0.2 && c.fillRatio <= 0.6
+      && c.fillRatio >= 0.15 && c.fillRatio <= 0.50
   },
   // Flat: tall stem with a round belly at the bottom, narrow
   {
@@ -151,6 +136,21 @@ const RULES = [
       && c.widthSS >= 0.3 && c.widthSS <= 1.0
       && c.aspectRatio >= 0.15 && c.aspectRatio <= 0.5
       && c.fillRatio >= 0.15 && c.fillRatio <= 0.5
+  },
+  // ── Rests & flags ──
+  {
+    type: SymbolType.REST_QUARTER,
+    test: (c) => c.aspectRatio >= 0.25 && c.aspectRatio <= 0.85
+      && c.fillRatio >= 0.35 && c.fillRatio <= 0.75
+      && c.widthSS >= 0.5 && c.widthSS <= 1.5
+      && c.heightSS >= 2.0 && c.heightSS <= 4.0
+  },
+  {
+    type: SymbolType.FLAG_EIGHTH,
+    test: (c) => c.aspectRatio >= 0.4 && c.aspectRatio <= 1.2
+      && c.fillRatio >= 0.3 && c.fillRatio <= 0.7
+      && c.widthSS >= 0.4 && c.widthSS <= 1.2
+      && c.heightSS >= 1.0 && c.heightSS <= 2.5
   }
 ];
 
