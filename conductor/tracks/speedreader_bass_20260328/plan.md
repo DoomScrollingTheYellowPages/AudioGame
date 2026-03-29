@@ -1,6 +1,6 @@
 # Plan: SpeedReaderGame Bass Clef & Clef Mode Support
 
-## Phase 1: Tests & Implementation [checkpoint: ]
+## Phase 1: Tests & Implementation [checkpoint: 24a4390]
 
 ### Task 1.1: Write failing SpeedReaderGame tests (Red) [x]
 Create `test/flashcard/SpeedReaderGame.test.js` with 8 tests.
@@ -18,4 +18,4 @@ Modify `src/flashcard/SpeedReaderGame.js`:
 Add three-button toggle (Treble / Bass / Both) matching flashcard.html pattern.
 Wire buttons to `game.setClefMode()` in `src/speed-reader-main.js`.
 
-### Task 1.4: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md) [ ]
+### Task 1.4: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md) [x]
