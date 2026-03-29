@@ -113,13 +113,13 @@ const RULES = [
       && c.holes >= 1
   },
   // ── Accidentals (before rests/flags — key-sig sharps at heightSS≥2 overlap) ──
-  // Sharp: two vertical strokes with two horizontal cross-bars; sparse fill (<0.50)
+  // Sharp: two vertical strokes with two horizontal cross-bars
   {
     type: SymbolType.SHARP,
     test: (c) => c.heightSS >= 1.2 && c.heightSS <= 3.0
       && c.widthSS >= 0.4 && c.widthSS <= 1.5
       && c.aspectRatio >= 0.2 && c.aspectRatio <= 0.8
-      && c.fillRatio >= 0.15 && c.fillRatio <= 0.50
+      && c.fillRatio >= 0.15 && c.fillRatio <= 0.70
   },
   // Flat: tall stem with a round belly at the bottom, narrow
   {

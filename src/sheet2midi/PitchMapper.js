@@ -389,14 +389,30 @@ export class PitchMapper {
 
     let sharpCount = 0;
     let flatCount = 0;
+    const regionSymbols = []; // diagnostic
 
     for (const s of symbols) {
       const cx = s.component.centroid.x;
       const cy = s.component.centroid.y;
       if (cy < topLine - margin || cy > bottomLine + margin) continue;
-      if (cx < clefRightX || cx > keySigEndX) continue;
 
       const c = s.component;
+      const inRegion = cx >= clefRightX && cx <= keySigEndX;
+
+      // Collect all symbols in y-range for diagnostics (even outside x-region)
+      regionSymbols.push({
+        type: s.type,
+        cx: Math.round(cx),
+        cy: Math.round(cy),
+        heightSS: c.heightSS != null ? +c.heightSS.toFixed(2) : null,
+        widthSS:  c.widthSS  != null ? +c.widthSS.toFixed(2)  : null,
+        aspectRatio: c.aspectRatio != null ? +c.aspectRatio.toFixed(3) : null,
+        fillRatio: c.fillRatio != null ? +c.fillRatio.toFixed(3) : null,
+        inRegion
+      });
+
+      if (!inRegion) continue;
+
       const isSharp = s.type === SymbolType.SHARP
         // Fallback: key sig sharps at small staff sizes may have hSS < 1.2 and be
         // misclassified as FILLED_NOTEHEAD. Detect them using raw shape features:
@@ -404,12 +420,12 @@ export class PitchMapper {
         || (c.heightSS >= 0.6 && c.heightSS <= 3.0
           && c.widthSS >= 0.3 && c.widthSS <= 1.5
           && c.aspectRatio >= 0.15 && c.aspectRatio < 0.7
-          && c.fillRatio >= 0.15 && c.fillRatio <= 0.65);
+          && c.fillRatio >= 0.15 && c.fillRatio <= 0.70);
       const isFlat = s.type === SymbolType.FLAT
         || (c.heightSS >= 0.9 && c.heightSS <= 3.5
           && c.widthSS >= 0.2 && c.widthSS <= 1.2
           && c.aspectRatio >= 0.1 && c.aspectRatio < 0.55
-          && c.fillRatio >= 0.2 && c.fillRatio <= 0.65);
+          && c.fillRatio >= 0.2 && c.fillRatio <= 0.70);
 
       if (isSharp) sharpCount++;
       else if (isFlat) flatCount++;
@@ -424,6 +440,15 @@ export class PitchMapper {
     if (sharps.size > 0 || flats.size > 0) {
       console.log(`[OMR] Key signature: ${sharpCount} sharps ${[...sharps].join(',')} | ${flatCount} flats ${[...flats].join(',')}`);
     }
+
+    this._bus.emit('omr:keysig-debug', {
+      clefRightX: Math.round(clefRightX),
+      firstNoteX: firstNoteX === Infinity ? null : Math.round(firstNoteX),
+      keySigEndX: Math.round(keySigEndX),
+      sharpCount,
+      flatCount,
+      regionSymbols
+    });
 
     return { sharps, flats };
   }

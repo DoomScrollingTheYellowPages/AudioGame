@@ -108,6 +108,16 @@ describe('SymbolClassifier', () => {
       assert.equal(sc.classifyHeuristic(c), SymbolType.SHARP);
     });
 
+    it('classifies GMajorScaleTrebleAscending key-sig sharp (fillRatio=0.655)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      // Real measured values from GMajorScaleTrebleAscending.png sharp at cx=109
+      const c = fakeComponent({
+        aspectRatio: 0.45, fillRatio: 0.655, widthSS: 0.85, heightSS: 2.1, holes: 0
+      });
+      assert.equal(sc.classifyHeuristic(c), SymbolType.SHARP);
+    });
+
     it('returns UNKNOWN for unrecognized shape', () => {
       const bus = new MockBus();
       const sc = new SymbolClassifier(bus);
