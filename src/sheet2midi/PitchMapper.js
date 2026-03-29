@@ -391,14 +391,28 @@ export class PitchMapper {
     let flatCount = 0;
 
     for (const s of symbols) {
-      if (s.type !== SymbolType.SHARP && s.type !== SymbolType.FLAT) continue;
       const cx = s.component.centroid.x;
       const cy = s.component.centroid.y;
       if (cy < topLine - margin || cy > bottomLine + margin) continue;
-      if (cx >= clefRightX && cx <= keySigEndX) {
-        if (s.type === SymbolType.SHARP) sharpCount++;
-        else flatCount++;
-      }
+      if (cx < clefRightX || cx > keySigEndX) continue;
+
+      const c = s.component;
+      const isSharp = s.type === SymbolType.SHARP
+        // Fallback: key sig sharps at small staff sizes may have hSS < 1.2 and be
+        // misclassified as FILLED_NOTEHEAD. Detect them using raw shape features:
+        // sharps are narrow (aspectRatio < 0.7), moderately tall, mid fill.
+        || (c.heightSS >= 0.6 && c.heightSS <= 3.0
+          && c.widthSS >= 0.3 && c.widthSS <= 1.5
+          && c.aspectRatio >= 0.15 && c.aspectRatio < 0.7
+          && c.fillRatio >= 0.15 && c.fillRatio <= 0.65);
+      const isFlat = s.type === SymbolType.FLAT
+        || (c.heightSS >= 0.9 && c.heightSS <= 3.5
+          && c.widthSS >= 0.2 && c.widthSS <= 1.2
+          && c.aspectRatio >= 0.1 && c.aspectRatio < 0.55
+          && c.fillRatio >= 0.2 && c.fillRatio <= 0.65);
+
+      if (isSharp) sharpCount++;
+      else if (isFlat) flatCount++;
     }
 
     // Build affected pitch class sets from circle-of-fifths order

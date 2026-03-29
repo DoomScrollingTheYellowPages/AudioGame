@@ -293,15 +293,24 @@ export class GrammarValidator {
    */
   _deduplicateNotes(notes, staffSpace) {
     if (notes.length <= 1) return notes;
-    const threshold = staffSpace;
+    // Same-pitch dedup window: 1× staffSpace. Split arcs from whole-note staff-line
+    // removal land at nearly the same x-centroid, so 1× staffSpace is sufficient.
+    const threshold = staffSpace * 1;
     const keep = new Array(notes.length).fill(true);
 
     for (let i = 0; i < notes.length; i++) {
       if (!keep[i]) continue;
       for (let j = i + 1; j < notes.length; j++) {
         if (!keep[j]) continue;
-        if (notes[j].midiNote !== notes[i].midiNote) continue;
-        if (Math.abs(notes[j].x - notes[i].x) >= threshold) continue;
+        const dx = Math.abs(notes[j].x - notes[i].x);
+        if (dx >= threshold) continue;
+
+        // Match on same MIDI note OR same staffPos (staffPos catches arcs whose
+        // MIDI note drifted by ±1 semitone from key-sig adjustment or centroid jitter).
+        const sameMidi = notes[j].midiNote === notes[i].midiNote;
+        const samePos  = notes[j].staffPos !== undefined
+          && notes[j].staffPos === notes[i].staffPos;
+        if (!sameMidi && !samePos) continue;
 
         // Duplicate: keep the one with larger area
         const areaI = notes[i].symbol?.component?.area ?? 0;
@@ -309,7 +318,7 @@ export class GrammarValidator {
         if (areaJ > areaI) {
           keep[i] = false;
           console.log(`[OMR] Dedup: dropped note at x=${Math.round(notes[i].x)} midi=${notes[i].midiNote} (area=${areaI}) in favor of x=${Math.round(notes[j].x)} (area=${areaJ})`);
-          break; // notes[i] is gone, no need to compare further
+          break;
         } else {
           keep[j] = false;
           console.log(`[OMR] Dedup: dropped note at x=${Math.round(notes[j].x)} midi=${notes[j].midiNote} (area=${areaJ}) in favor of x=${Math.round(notes[i].x)} (area=${areaI})`);
