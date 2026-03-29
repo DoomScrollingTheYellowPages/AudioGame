@@ -247,6 +247,17 @@ export class OMREngine {
     // Determine if a grand staff pair was detected
     const isGrandStaff = grandStaffMode && !!this._pitchMapper._lastPairingMethod;
 
+    // Build MIDI key signature meta event from detected key signature
+    const mergedKeySig = { sharps: new Set(), flats: new Set() };
+    for (const group of groups) {
+      const ks = this._pitchMapper.detectKeySignature(symbols, group, staffSpace);
+      for (const s of ks.sharps) mergedKeySig.sharps.add(s);
+      for (const f of ks.flats) mergedKeySig.flats.add(f);
+    }
+    const midiKeySig = (mergedKeySig.sharps.size > 0 || mergedKeySig.flats.size > 0)
+      ? { sf: mergedKeySig.sharps.size > 0 ? mergedKeySig.sharps.size : -mergedKeySig.flats.size, mi: 0 }
+      : null;
+
     // Merge into time-ordered sequence and compute cumulative startBeat
     const allEvents = [
       ...validatedNotes.map(n => ({ ...n, isRest: false })),
@@ -276,7 +287,8 @@ export class OMREngine {
       midi = MidiWriter.buildMultiTrack({
         bpm,
         tracks: [trebleMidi, bassMidi],
-        meter: timeSig
+        meter: timeSig,
+        keySig: midiKeySig
       });
     } else {
       const midiNotes = allEvents
@@ -287,7 +299,8 @@ export class OMREngine {
       midi = MidiWriter.build({
         bpm,
         notes: midiNotes,
-        meter: timeSig
+        meter: timeSig,
+        keySig: midiKeySig
       });
     }
 

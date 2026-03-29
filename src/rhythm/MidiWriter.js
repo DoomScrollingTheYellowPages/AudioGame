@@ -16,7 +16,7 @@ export class MidiWriter {
    * @param {number[]} [opts.meter=[4,4]]  — time signature [numerator, denominator]
    * @returns {ArrayBuffer}
    */
-  static build({ bpm, notes, velocity = 100, ticksPerBeat = 480, meter = [4, 4] }) {
+  static build({ bpm, notes, velocity = 100, ticksPerBeat = 480, meter = [4, 4], keySig = null }) {
     const usPerBeat = Math.round(60000000 / bpm);
     const track = [];
 
@@ -31,6 +31,15 @@ export class MidiWriter {
     track.push((usPerBeat >> 16) & 0xFF);
     track.push((usPerBeat >> 8) & 0xFF);
     track.push(usPerBeat & 0xFF);
+
+    // Key signature meta event (delta 0): FF 59 02 sf mi
+    //   sf: signed byte — positive=sharps, negative=flats (two's complement)
+    //   mi: 0=major, 1=minor
+    if (keySig != null) {
+      const sf = ((keySig.sf & 0xFF) + 0x100) & 0xFF; // to unsigned byte
+      const mi = keySig.mi ?? 0;
+      track.push(0x00, 0xFF, 0x59, 0x02, sf, mi);
+    }
 
     // Note events — supports optional startBeat for rest gaps
     let currentTick = 0;
@@ -86,18 +95,23 @@ export class MidiWriter {
    * @param {number[]} [opts.meter=[4,4]]
    * @returns {ArrayBuffer}
    */
-  static buildMultiTrack({ bpm, tracks, velocity = 100, ticksPerBeat = 480, meter = [4, 4] }) {
+  static buildMultiTrack({ bpm, tracks, velocity = 100, ticksPerBeat = 480, meter = [4, 4], keySig = null }) {
     const usPerBeat = Math.round(60000000 / bpm);
     const denomPow = Math.log2(meter[1]);
 
     const trackChunks = tracks.map((notes, trackIndex) => {
       const track = [];
 
-      // Time signature + tempo meta events go in the first track only
+      // Time signature + tempo + key sig meta events go in the first track only
       if (trackIndex === 0) {
         track.push(0x00, 0xFF, 0x58, 0x04, meter[0], denomPow, 0x18, 0x08);
         track.push(0x00, 0xFF, 0x51, 0x03);
         track.push((usPerBeat >> 16) & 0xFF, (usPerBeat >> 8) & 0xFF, usPerBeat & 0xFF);
+        if (keySig != null) {
+          const sf = ((keySig.sf & 0xFF) + 0x100) & 0xFF;
+          const mi = keySig.mi ?? 0;
+          track.push(0x00, 0xFF, 0x59, 0x02, sf, mi);
+        }
       }
 
       // Note events

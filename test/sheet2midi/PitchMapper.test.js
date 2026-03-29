@@ -290,6 +290,68 @@ describe('PitchMapper', () => {
     });
   });
 
+  // ── assignPitches with key signature (integration) ────────────────────
+  describe('assignPitches key signature integration', () => {
+    // Staff: 5 lines, staffSpace=10. Bottom line y=140, top y=100.
+    // Clef at x=20 (bbox x=10, width=20 → rightEdge=30).
+    // Note at x=100 (firstNoteX=100). Key sig region: x=30..100.
+    // F4 is at staffPos=1 → y = 140 - 1*(10/2) = 135.
+    // C4 is at staffPos=-2 → y = 140 - (-2)*5 = 150.
+    const staffGroup = [100, 110, 120, 130, 140];
+    const staffSpace = 10;
+
+    function clef() {
+      return { type: SymbolType.CLEF_TREBLE, component: { centroid: { x: 20, y: 120 }, bbox: { x: 10, width: 20 } } };
+    }
+    function sharp(x) {
+      return { type: SymbolType.SHARP, component: { centroid: { x, y: 115 }, bbox: { x: x - 3, width: 5 } } };
+    }
+    function note(y) {
+      return { type: SymbolType.FILLED_NOTEHEAD, component: { centroid: { x: 100, y }, bbox: { x: 95, width: 10 } } };
+    }
+    function naturalAcc(x, y) {
+      return { type: SymbolType.NATURAL, component: { centroid: { x, y }, bbox: { x: x - 3, width: 5 } } };
+    }
+
+    it('G major (1 sharp): F4 note is returned as F# (MIDI 66)', () => {
+      // G major key sig: 1 sharp → F#
+      // Without key sig wiring, F4 would be MIDI 65. With it: 66.
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const symbols = [clef(), sharp(40), note(135)];
+      const notes = pm.assignPitches(symbols, [staffGroup], staffSpace);
+      assert.equal(notes.length, 1);
+      assert.equal(notes[0].midiNote, 66, 'F4 should become F#4 in G major');
+    });
+
+    it('D major (2 sharps): F4 and C4 both raised by 1 semitone', () => {
+      // D major: F# and C# (SHARP_ORDER: F then C)
+      // F4 = MIDI 65 → 66; C4 below staff (y=150, staffPos=-2) = MIDI 60 → 61
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const symbols = [clef(), sharp(40), sharp(50), note(135), note(150)];
+      const notes = pm.assignPitches(symbols, [staffGroup], staffSpace);
+      assert.equal(notes.length, 2);
+      const f = notes.find(n => n.noteName.startsWith('F'));
+      const c = notes.find(n => n.noteName.startsWith('C'));
+      assert.ok(f, 'should have an F note');
+      assert.ok(c, 'should have a C note');
+      assert.equal(f.midiNote, 66, 'F should be raised to F#');
+      assert.equal(c.midiNote, 61, 'C should be raised to C#');
+    });
+
+    it('NATURAL inline accidental cancels key signature sharp', () => {
+      // G major key sig (1 sharp: F#) but the F note has a NATURAL inline accidental
+      // The F note at x=100, y=135; NATURAL sign at x=90, y=135 (just before it)
+      const bus = new MockBus();
+      const pm = new PitchMapper(bus);
+      const symbols = [clef(), sharp(40), naturalAcc(90, 135), note(135)];
+      const notes = pm.assignPitches(symbols, [staffGroup], staffSpace);
+      assert.equal(notes.length, 1);
+      assert.equal(notes[0].midiNote, 65, 'NATURAL should cancel key sig → F natural (65)');
+    });
+  });
+
   // ── _buildClefMap (grand staff pairing cascade) ──────────────────────
   describe('_buildClefMap', () => {
     const SS = 12; // staffSpace in pixels
