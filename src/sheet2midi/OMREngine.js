@@ -315,7 +315,8 @@ export class OMREngine {
       notes: validatedNotes,
       corrections,
       staffInfo: { groups, staffSpace, lineThickness },
-      symbols
+      symbols,
+      keySig: mergedKeySig
     };
   }
 

@@ -363,6 +363,25 @@ debugToggle.addEventListener('change', () => {
   if (!debugToggle.checked) debugResults.classList.remove('active');
 });
 
+/** Convert beats to a readable duration name. */
+function beatsToName(beats) {
+  const map = [
+    [4,    'whole'],
+    [3,    'dot. half'],
+    [2,    'half'],
+    [1.5,  'dot. qtr'],
+    [1,    'quarter'],
+    [0.75, 'dot. 8th'],
+    [0.5,  'eighth'],
+    [0.25, '16th'],
+    [0.125,'32nd'],
+  ];
+  for (const [v, name] of map) {
+    if (Math.abs(beats - v) < 0.01) return name;
+  }
+  return `${beats}b`;
+}
+
 /** @param {object} result - from engine.process() */
 function renderDebugResults(result, fileName) {
   if (!debugToggle.checked) return;
@@ -375,6 +394,21 @@ function renderDebugResults(result, fileName) {
   // ── Staff Detection ────────────────────────────────────────────────────────
   html += '<h4>Staff Detection</h4>';
   html += `<p>Groups: ${result.staffInfo.groups.length} | staffSpace: ${result.staffInfo.staffSpace}px | lineThick: ${result.staffInfo.lineThickness}px</p>`;
+
+  // ── Key Signature ──────────────────────────────────────────────────────────
+  html += '<h4>Key Signature</h4>';
+  const ks = result.keySig;
+  if (!ks || (ks.sharps.size === 0 && ks.flats.size === 0)) {
+    html += '<p>None detected (C major / A minor)</p>';
+  } else if (ks.sharps.size > 0) {
+    const sf = ks.sharps.size;
+    const names = [...ks.sharps].join(', ');
+    html += `<p class="match">${sf} sharp${sf > 1 ? 's' : ''}: ${names} &nbsp;(MIDI sf=${sf})</p>`;
+  } else {
+    const sf = ks.flats.size;
+    const names = [...ks.flats].join(', ');
+    html += `<p class="match">${sf} flat${sf > 1 ? 's' : ''}: ${names} &nbsp;(MIDI sf=−${sf})</p>`;
+  }
 
   // ── Clef Detection ─────────────────────────────────────────────────────────
   html += '<h4>Clef Detection</h4>';
@@ -404,10 +438,15 @@ function renderDebugResults(result, fileName) {
   if (expected) {
     html += `<p class="debug-expected">Expected: ${expected.notes.join(', ')} (MIDI: ${expected.midi.join(', ')})</p>`;
   }
-  html += '<table><tr><th>#</th><th>Name</th><th>Oct</th><th>MIDI</th><th>Clef</th><th>StaffPos</th><th>X</th><th>Match</th></tr>';
+  html += '<table><tr><th>#</th><th>Name</th><th>Acc</th><th>Oct</th><th>MIDI</th><th>Dur</th><th>Clef</th><th>StaffPos</th><th>X</th><th>Match</th></tr>';
   for (let i = 0; i < notes.length; i++) {
     const n = notes[i];
     const detected = `${n.noteName}${n.octave}`;
+    const acc = n.noteName.endsWith('#') ? '#'
+              : n.noteName.endsWith('b') ? 'b'
+              : '';
+    const baseName = acc ? n.noteName.slice(0, -1) : n.noteName;
+    const dur = beatsToName(n.beats ?? 1);
     let matchClass = '';
     let matchText = '';
     if (expected && i < expected.notes.length) {
@@ -417,9 +456,11 @@ function renderDebugResults(result, fileName) {
     }
     html += `<tr>`;
     html += `<td>${i + 1}</td>`;
-    html += `<td>${n.noteName}</td>`;
+    html += `<td>${baseName}</td>`;
+    html += `<td class="${acc ? 'match' : ''}">${acc}</td>`;
     html += `<td>${n.octave}</td>`;
     html += `<td>${n.midiNote}</td>`;
+    html += `<td>${dur}</td>`;
     html += `<td>${n.clef}</td>`;
     html += `<td>${n.staffPos}</td>`;
     html += `<td>${Math.round(n.symbol.component.centroid.x)}</td>`;
