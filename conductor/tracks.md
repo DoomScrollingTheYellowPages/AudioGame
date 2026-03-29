@@ -57,4 +57,9 @@ This file tracks all major tracks for the project. Each track has its own detail
 ## [x] Track: EventBus & utils Test Coverage
 *Link: [./conductor/tracks/core_coverage_20260328/](./conductor/tracks/core_coverage_20260328/)*
 
+---
+
+## [~] Track: OMR Pipeline Phase 2 — Key Signatures, Rhythm Verification & Grand Staff Tests
+*Link: [./conductor/tracks/omr_phase2_20260328/](./conductor/tracks/omr_phase2_20260328/)*
+
 
