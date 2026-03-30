@@ -10,6 +10,18 @@ dotnet-serve -p 8080 -o --mime .js=application/javascript
 
 ES modules require HTTP (not `file://`). Config lives in `.claude/launch.json`. Alternatives: `python -m http.server 8080`, `npx http-server -p 8080`.
 
+## Development Process
+
+Before implementing any new technical capability, check `docs/techniques/` for a reference document covering that domain. If none exists, create one first. Each reference doc should contain:
+- A plain-language description of the problem
+- Known approaches and trade-offs
+- Links to relevant GitHub repos, papers, or specifications
+- The approach we chose and why
+
+This applies to anything non-trivial: a new recognition algorithm, a new audio processing technique, a new rendering strategy, etc. The goal is to have evaluated the landscape before committing to an implementation.
+
+See `docs/techniques/staff-notation-coordinates.md` as the reference example — it documents the problem, external approaches (VexFlow, OSMD, MusicXML, LilyPond), our three implementations, their inconsistency, and the open research questions before any unification work begins.
+
 ## Architecture
 
 **EventBus is the backbone.** Every module communicates through `bus.emit()` / `bus.on()`. No globals, no singletons. Each HTML page creates its own EventBus + input instances in its `*-main.js` entry point.
