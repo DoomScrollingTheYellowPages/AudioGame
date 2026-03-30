@@ -330,12 +330,22 @@ function validateFixture(name) {
       `Name mismatch.\nExpected: ${exp.join(', ')}\nGot:      ${got.join(', ')}`);
   });
 
-  it(`${name}: all notes have beats = 1`, () => {
-    for (const n of result.notes) {
-      assert.equal(n.beats, 1,
-        `Note ${n.name} has beats=${n.beats}, expected 1`);
-    }
-  });
+  const allBeatsOne = expected.notes.every(n => n.beats === 1);
+  if (allBeatsOne) {
+    it(`${name}: all notes have beats = 1`, () => {
+      for (const n of result.notes) {
+        assert.equal(n.beats, 1,
+          `Note ${n.name} has beats=${n.beats}, expected 1`);
+      }
+    });
+  } else {
+    it(`${name}: note beats match`, () => {
+      const got = result.notes.map(n => n.beats);
+      const exp = expected.notes.map(n => n.beats);
+      assert.deepEqual(got, exp,
+        `Beats mismatch.\nExpected: ${exp.join(', ')}\nGot:      ${got.join(', ')}`);
+    });
+  }
 
   it(`${name}: bar count equals ${expected.bars}`, () => {
     assert.equal(result.bars, expected.bars,
@@ -374,4 +384,8 @@ describe('OMR Validation: BassStaffScale', () => {
 
 describe('OMR Validation: grandstaffmono1', () => {
   validateFixture('grandstaffmono1');
+});
+
+describe('OMR Validation: MixedDurations', () => {
+  validateFixture('MixedDurations');
 });

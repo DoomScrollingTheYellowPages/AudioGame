@@ -61,6 +61,8 @@ let lastPlaybackBpm = 120;
 let pdfDoc = null;
 let pdfPage = 1;
 let _clefDetections = []; // captured per-run from omr:clef-detected events
+let _keySigDebug = [];   // captured per-run from omr:keysig-debug events
+let _lastDebugData = null; // full debug snapshot for JSON export
 
 // ── PDF.js lazy loader ─────────────────────────
 
@@ -145,6 +147,12 @@ async function selectFile(file) {
   errorMsg.classList.remove('active');
   progressArea.classList.remove('active');
   pageSelector.classList.remove('active');
+  overlayCanvas.classList.remove('active');
+  vizNav.classList.remove('active');
+  debugResults.classList.remove('active');
+  debugContent.innerHTML = '';
+  debugCopyBtn.style.display = 'none';
+  _lastDebugData = null;
 
   uploadArea.querySelector('h2').textContent = file.name;
   uploadArea.querySelector('p').textContent =
@@ -228,6 +236,7 @@ processBtn.addEventListener('click', async () => {
   correctionsLog.classList.remove('active');
   overlay.reset();
   _clefDetections = [];
+  _keySigDebug = [];
 
   const bpm = parseInt(bpmInput.value, 10) || 120;
   const [num, den] = timeSigSelect.value.split('/').map(Number);
@@ -315,6 +324,10 @@ bus.on('omr:clef-detected', (data) => {
   _clefDetections.push(data);
 });
 
+bus.on('omr:keysig-debug', (data) => {
+  _keySigDebug.push(data);
+});
+
 // ── Pipeline Debug Overlay ──────────────────────
 
 bus.on('omr:debug', (stepData) => {
@@ -348,6 +361,7 @@ vizNext.addEventListener('click', () => {
 const debugToggle = document.getElementById('debug-toggle');
 const debugResults = document.getElementById('debug-results');
 const debugContent = document.getElementById('debug-content');
+const debugCopyBtn = document.getElementById('debug-copy-btn');
 
 // Expected results for test images
 const TEST_EXPECTED = {
@@ -361,6 +375,26 @@ const TEST_EXPECTED = {
 
 debugToggle.addEventListener('change', () => {
   if (!debugToggle.checked) debugResults.classList.remove('active');
+});
+
+debugCopyBtn.addEventListener('click', () => {
+  if (!_lastDebugData) return;
+  const json = JSON.stringify(_lastDebugData, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'debugdata.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  debugCopyBtn.textContent = 'Saved!';
+  debugCopyBtn.classList.add('copied');
+  setTimeout(() => {
+    debugCopyBtn.textContent = 'Save JSON';
+    debugCopyBtn.classList.remove('copied');
+  }, 1500);
 });
 
 /** Convert beats to a readable duration name. */
@@ -399,15 +433,37 @@ function renderDebugResults(result, fileName) {
   html += '<h4>Key Signature</h4>';
   const ks = result.keySig;
   if (!ks || (ks.sharps.size === 0 && ks.flats.size === 0)) {
-    html += '<p>None detected (C major / A minor)</p>';
+    html += '<p class="mismatch">None detected (C major / A minor)</p>';
   } else if (ks.sharps.size > 0) {
     const sf = ks.sharps.size;
-    const names = [...ks.sharps].join(', ');
-    html += `<p class="match">${sf} sharp${sf > 1 ? 's' : ''}: ${names} &nbsp;(MIDI sf=${sf})</p>`;
+    html += `<p class="match">${sf} sharp${sf > 1 ? 's' : ''}: ${[...ks.sharps].join(', ')} &nbsp;(MIDI sf=${sf})</p>`;
   } else {
     const sf = ks.flats.size;
-    const names = [...ks.flats].join(', ');
-    html += `<p class="match">${sf} flat${sf > 1 ? 's' : ''}: ${names} &nbsp;(MIDI sf=−${sf})</p>`;
+    html += `<p class="match">${sf} flat${sf > 1 ? 's' : ''}: ${[...ks.flats].join(', ')} &nbsp;(MIDI sf=−${sf})</p>`;
+  }
+
+  // Key sig region diagnostics
+  if (_keySigDebug.length > 0) {
+    for (let si = 0; si < _keySigDebug.length; si++) {
+      const d = _keySigDebug[si];
+      html += `<p style="color:var(--mid);font-size:10px">Staff ${si + 1}: clefRightX=${d.clefRightX} firstNoteX=${d.firstNoteX ?? '∞'} keySigEndX=${d.keySigEndX} → ${d.sharpCount}♯ ${d.flatCount}♭</p>`;
+      if (d.regionSymbols.length > 0) {
+        html += '<table><tr><th>Type</th><th>cx</th><th>hSS</th><th>wSS</th><th>AR</th><th>Fill</th><th>In Region</th></tr>';
+        for (const sym of d.regionSymbols) {
+          const inReg = sym.inRegion ? '<span class="match">✓</span>' : '<span class="mismatch">✗</span>';
+          html += `<tr>`;
+          html += `<td>${sym.type}</td>`;
+          html += `<td>${sym.cx}</td>`;
+          html += `<td>${sym.heightSS ?? '?'}</td>`;
+          html += `<td>${sym.widthSS ?? '?'}</td>`;
+          html += `<td>${sym.aspectRatio ?? '?'}</td>`;
+          html += `<td>${sym.fillRatio ?? '?'}</td>`;
+          html += `<td>${inReg}</td>`;
+          html += `</tr>`;
+        }
+        html += '</table>';
+      }
+    }
   }
 
   // ── Clef Detection ─────────────────────────────────────────────────────────
@@ -542,6 +598,33 @@ function renderDebugResults(result, fileName) {
 
   debugContent.innerHTML = html;
   debugResults.classList.add('active');
+  debugCopyBtn.style.display = 'inline-block';
+
+  // Store raw data snapshot for JSON export
+  _lastDebugData = {
+    fileName,
+    staffInfo: {
+      groups: result.staffInfo.groups.length,
+      staffSpace: result.staffInfo.staffSpace,
+      lineThickness: result.staffInfo.lineThickness
+    },
+    keySig: {
+      sharps: [...(result.keySig?.sharps ?? [])],
+      flats:  [...(result.keySig?.flats  ?? [])]
+    },
+    keySigDebug: _keySigDebug,
+    clefDetections: _clefDetections,
+    notes: notes.map(n => ({
+      noteName: n.noteName,
+      octave: n.octave,
+      midiNote: n.midiNote,
+      beats: n.beats,
+      clef: n.clef,
+      staffPos: n.staffPos,
+      x: Math.round(n.symbol?.component?.centroid?.x ?? 0)
+    })),
+    symbolCounts: typeCounts
+  };
 }
 
 // ── MIDI Download ──────────────────────────

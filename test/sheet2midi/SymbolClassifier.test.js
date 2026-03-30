@@ -89,6 +89,26 @@ describe('SymbolClassifier', () => {
       assert.equal(sc.classifyHeuristic(c), SymbolType.BEAM);
     });
 
+    it('classifies a thin beam after 2x upscale + morphClose boundary erosion (heightSS=0.125)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      // Real measured: 5px tall beam at 2x (staffSpace=40), eroded to heightSS=0.125 by morphClose
+      const c = fakeComponent({
+        aspectRatio: 37.0, fillRatio: 1.0, widthSS: 4.65, heightSS: 0.125, holes: 0
+      });
+      assert.equal(sc.classifyHeuristic(c), SymbolType.BEAM);
+    });
+
+    it('classifies a short stem after medianFilter shrinkage (heightSS=1.95)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      // Real measured: 39px stem at 1x (staffSpace=20), medianFilter removes 1px each end
+      const c = fakeComponent({
+        aspectRatio: 0.05, fillRatio: 1.0, widthSS: 0.10, heightSS: 1.95, holes: 0
+      });
+      assert.equal(sc.classifyHeuristic(c), SymbolType.STEM);
+    });
+
     it('classifies a sharp accidental (small inline)', () => {
       const bus = new MockBus();
       const sc = new SymbolClassifier(bus);

@@ -439,6 +439,22 @@
       gap: 6px;
     }
 
+    #debug-copy-btn {
+      background: var(--control-bg);
+      color: var(--dim3);
+      border: 1px solid var(--control-border);
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-family: var(--font);
+      font-size: 10px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    #debug-copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+    #debug-copy-btn.copied { color: var(--perfect); border-color: var(--perfect); }
+
     #debug-toggle {
       accent-color: var(--accent);
     }
@@ -601,9 +617,10 @@
   <div class="debug-panel active" id="debug-panel">
     <div class="debug-header">
       <label>
-        <input type="checkbox" id="debug-toggle" />
+        <input type="checkbox" id="debug-toggle" checked />
         Debug Mode
       </label>
+      <button id="debug-copy-btn" style="display:none">Save JSON</button>
     </div>
     <div class="debug-results" id="debug-results">
       <div id="debug-content"></div>

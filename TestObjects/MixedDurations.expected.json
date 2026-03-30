@@ -1,0 +1,13 @@
+{
+  "image": "MixedDurations.png",
+  "clef": "treble",
+  "bars": 2,
+  "totalBeats": 8,
+  "notes": [
+    { "note": 65, "name": "F4", "beats": 4 },
+    { "note": 67, "name": "G4", "beats": 2 },
+    { "note": 71, "name": "B4", "beats": 1 },
+    { "note": 72, "name": "C5", "beats": 0.5 },
+    { "note": 72, "name": "C5", "beats": 0.5 }
+  ]
+}

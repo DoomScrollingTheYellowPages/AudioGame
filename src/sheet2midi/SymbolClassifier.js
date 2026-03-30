@@ -77,14 +77,14 @@ const RULES = [
     test: (c) => c.aspectRatio >= 0.03 && c.aspectRatio <= 0.3
       && c.fillRatio > 0.7
       && c.widthSS >= 0.05 && c.widthSS <= 0.4
-      && c.heightSS >= 2.0
+      && c.heightSS >= 1.8
   },
   // ── Wide symbols ──
   {
     type: SymbolType.BEAM,
     test: (c) => c.aspectRatio > 2.5
       && c.fillRatio > 0.6
-      && c.heightSS >= 0.2 && c.heightSS <= 0.7
+      && c.heightSS >= 0.08 && c.heightSS <= 0.7
       && c.widthSS > 1.5
   },
   // ── Noteheads ──
@@ -96,20 +96,22 @@ const RULES = [
       && c.heightSS >= 0.3 && c.heightSS <= 1.8
       && c.holes === 0
   },
+  // Whole note: checked BEFORE open notehead — wider (wSS≥1.3) with thinner ring (fill≤0.65)
+  {
+    type: SymbolType.WHOLE_NOTE,
+    test: (c) => c.aspectRatio >= 1.1 && c.aspectRatio <= 2.5
+      && c.fillRatio >= 0.25 && c.fillRatio <= 0.65
+      && c.widthSS >= 1.3 && c.widthSS <= 2.5
+      && c.heightSS >= 0.5 && c.heightSS <= 1.8
+      && c.holes >= 1
+  },
+  // Open notehead (half note): narrower than whole note (wSS < 1.3 typical)
   {
     type: SymbolType.OPEN_NOTEHEAD,
     test: (c) => c.aspectRatio >= 0.7 && c.aspectRatio <= 2.0
       && c.fillRatio >= 0.25 && c.fillRatio <= 0.75
       && c.widthSS >= 0.4 && c.widthSS <= 2.0
       && c.heightSS >= 0.3 && c.heightSS <= 1.8
-      && c.holes >= 1
-  },
-  {
-    type: SymbolType.WHOLE_NOTE,
-    test: (c) => c.aspectRatio >= 1.1 && c.aspectRatio <= 2.2
-      && c.fillRatio >= 0.25 && c.fillRatio <= 0.65
-      && c.widthSS >= 0.9 && c.widthSS <= 2.0
-      && c.heightSS >= 0.6 && c.heightSS <= 1.5
       && c.holes >= 1
   },
   // ── Accidentals (before rests/flags — key-sig sharps at heightSS≥2 overlap) ──
