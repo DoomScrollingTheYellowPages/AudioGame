@@ -89,3 +89,8 @@ Inspired by VexFlow's KeyManager and OSMD's accidental scope logic.
 - Grace note detection
 - Any change to the sheet2midi UI
 - Accuracy improvements beyond no-regression (new fixture validation is the next track)
+- **Grand staff duration detection** — grandstaffmono1 (quarter notes only) processes
+  correctly; grandstaffmono2 (which includes open/whole noteheads) exposes that duration
+  classification for grand staff images has not been verified. This is a future track
+  covering: open notehead vs whole note disambiguation at small scales, stem-notehead
+  association for duration inference, and grand-staff-specific duration validation.

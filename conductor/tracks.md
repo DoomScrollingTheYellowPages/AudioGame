@@ -64,5 +64,10 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [ ] Track: OMR Pipeline Phase 3 — SIG Graph, Pipeline Reordering, Key Sig State Tracking
+## [x] Track: OMR Pipeline Phase 3 — SIG Graph, Pipeline Reordering, Key Sig State Tracking
 *Link: [./conductor/tracks/omr_phase3_20260330/](./conductor/tracks/omr_phase3_20260330/)*
+
+---
+
+## [ ] Track (Future): Grand Staff Duration Detection & Validation
+*Not yet instantiated — identified during Phase 3. Grand staff images with mixed note durations (open noteheads, whole notes) need: open vs whole notehead disambiguation at small scales, stem-notehead association for duration inference, and grand-staff-specific duration validation fixtures. See Phase 3 spec Out of Scope for context.*
