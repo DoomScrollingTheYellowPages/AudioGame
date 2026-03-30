@@ -46,7 +46,24 @@ export class PitchMapper {
    * @param {number[]} staffGroup - 5 staff line y-positions
    * @returns {'treble'|'bass'}
    */
-  detectClef(symbols, staffGroup) {
+  detectClef(symbols, staffGroup, binary = null, imgWidth = 0, staffSpace = 0) {
+    // Primary: NCC template matching — finds the clef regardless of what nearby
+    // objects the symbol classifier may have mislabelled.
+    if (binary && staffSpace > 0) {
+      const nccResult = this._detectClefByNCC(binary, imgWidth, staffGroup, staffSpace);
+      if (nccResult) {
+        console.log(`[OMR] Clef detected by NCC: ${nccResult.clef} (treble=${nccResult.trebleScore.toFixed(3)} bass=${nccResult.bassScore.toFixed(3)})`);
+        this._bus.emit('omr:clef-detected', {
+          clef: nccResult.clef,
+          method: 'ncc',
+          trebleNCC: nccResult.trebleScore,
+          bassNCC: nccResult.bassScore
+        });
+        return nccResult.clef;
+      }
+    }
+    // Fallback: symbol-label-based heuristics (less reliable, retained for edge cases)
+    {
     const topLine = staffGroup[0];
     const bottomLine = staffGroup[4];
     const staffHeight = bottomLine - topLine;
@@ -81,26 +98,27 @@ export class PitchMapper {
     if (clefCandidates.length > 0) {
       // If we have explicit treble, use it
       const treble = clefCandidates.find(s => s.type === SymbolType.CLEF_TREBLE);
-      if (treble) return 'treble';
+      if (treble) {
+        this._bus.emit('omr:clef-detected', { clef: 'treble', method: 'symbol' });
+        return 'treble';
+      }
 
-      // If classified as bass, double-check using positional heuristics:
-      // A treble clef's centroid sits near the middle/lower portion of the staff
-      // and it spans most of the staff height. A bass clef sits in the upper half.
+      // If classified as bass, double-check using positional heuristics
       const bass = clefCandidates.find(s => s.type === SymbolType.CLEF_BASS);
       if (bass) {
         const compHeight = bass.component.bbox.height;
         const compCenterY = bass.component.centroid.y;
-        // If the "bass" component spans >= 60% of staff height, it's likely treble
         if (compHeight >= staffHeight * 0.6) {
           console.log(`[OMR] Clef reclassification: bass→treble (height ${compHeight} >= 60% of staff ${staffHeight})`);
+          this._bus.emit('omr:clef-detected', { clef: 'treble', method: 'symbol-reclassified' });
           return 'treble';
         }
-        // If centroid is near the staff center or below, it's likely treble
-        // (bass clef centroid should be in the upper third of the staff)
         if (compCenterY >= staffCenter - staffHeight * 0.1) {
           console.log(`[OMR] Clef reclassification: bass→treble (centroid ${compCenterY.toFixed(0)} at/below staff center ${staffCenter.toFixed(0)})`);
+          this._bus.emit('omr:clef-detected', { clef: 'treble', method: 'symbol-reclassified' });
           return 'treble';
         }
+        this._bus.emit('omr:clef-detected', { clef: 'bass', method: 'symbol' });
         return 'bass';
       }
     }
@@ -115,7 +133,6 @@ export class PitchMapper {
       const cx = c.centroid.x;
       if (cx >= firstNoteX) continue;
       if (cy < topLine - staffHeight * 0.5 || cy > bottomLine + staffHeight * 0.5) continue;
-      // Must be a substantial symbol (not a dot or tiny fragment)
       if (c.heightSS < 2.0 || c.widthSS < 0.5) continue;
       if (cx < bestClefX) {
         bestClefX = cx;
@@ -127,13 +144,16 @@ export class PitchMapper {
       const compHeight = bestClefCandidate.bbox.height;
       if (compHeight >= staffHeight * 0.5) {
         console.log(`[OMR] Clef inferred as treble from large left component (height ${compHeight}, staff ${staffHeight})`);
+        this._bus.emit('omr:clef-detected', { clef: 'treble', method: 'size-heuristic' });
         return 'treble';
       }
     }
 
     // Default to bass for single-staff scores
     console.log(`[OMR] Clef defaulting to bass (no clef symbol found)`);
+    this._bus.emit('omr:clef-detected', { clef: 'bass', method: 'default' });
     return 'bass';
+    } // end fallback block
   }
 
   /**
@@ -238,31 +258,76 @@ export class PitchMapper {
   }
 
   /**
-   * Detect grand staff pairs (treble+bass) from staff groups.
-   * Two consecutive groups whose gap is smaller than 3× staffSpace
-   * are considered a grand staff pair.
+   * Detect grand staff pairs (treble+bass) from staff groups using a cascade:
+   *   1. Brace symbol detection (primary — most reliable)
+   *   2. Gap threshold < 8×staffSpace (secondary)
+   *   3. First-two-staves fallback (tertiary — only when exactly 2 staves)
+   *
    * @param {number[][]} staffGroups
    * @param {number} staffSpace
+   * @param {Array<{type: string, component: object}>} [symbols]
    * @returns {Map<number[], 'treble'|'bass'>} clef map per group
    */
-  _buildClefMap(staffGroups, staffSpace) {
+  _buildClefMap(staffGroups, staffSpace, symbols = []) {
     const clefMap = new Map();
     const used = new Set();
 
-    for (let i = 0; i < staffGroups.length - 1; i++) {
-      if (used.has(i)) continue;
-      const gapBetween = staffGroups[i + 1][0] - staffGroups[i][4];
-      // Grand staff pair: gap between bottom of upper and top of lower
-      // is typically 1.5–3× staffSpace
-      if (gapBetween < staffSpace * 8 && gapBetween > 0) {
-        clefMap.set(staffGroups[i], 'treble');
-        clefMap.set(staffGroups[i + 1], 'bass');
-        used.add(i);
-        used.add(i + 1);
+    // ── Primary: brace detection ───────────────────────────────────────────
+    const braceSymbols = symbols.filter(s => s.type === SymbolType.BRACE);
+
+    if (braceSymbols.length > 0) {
+      for (let i = 0; i < staffGroups.length - 1; i++) {
+        if (used.has(i)) continue;
+        const upper = staffGroups[i];
+        const lower = staffGroups[i + 1];
+        const combinedTop    = upper[0];
+        const combinedBottom = lower[4];
+        const combinedHeight = combinedBottom - combinedTop;
+
+        // Look for a brace that spans ≥ 80% of the combined staff height
+        const matchingBrace = braceSymbols.find(b => {
+          const by0 = b.component.bbox.y;
+          const by1 = b.component.bbox.y + b.component.bbox.height;
+          const overlap = Math.min(by1, combinedBottom) - Math.max(by0, combinedTop);
+          return overlap >= combinedHeight * 0.8;
+        });
+
+        if (matchingBrace) {
+          clefMap.set(upper, 'treble');
+          clefMap.set(lower, 'bass');
+          used.add(i);
+          used.add(i + 1);
+          this._lastPairingMethod = 'brace';
+          console.log(`[OMR] Grand staff pair (brace): groups ${i} & ${i+1}`);
+        }
       }
     }
 
-    // Log grand staff detection
+    // ── Secondary: gap threshold ───────────────────────────────────────────
+    if (clefMap.size === 0) {
+      for (let i = 0; i < staffGroups.length - 1; i++) {
+        if (used.has(i)) continue;
+        const gapBetween = staffGroups[i + 1][0] - staffGroups[i][4];
+        if (gapBetween < staffSpace * 8 && gapBetween > 0) {
+          clefMap.set(staffGroups[i], 'treble');
+          clefMap.set(staffGroups[i + 1], 'bass');
+          used.add(i);
+          used.add(i + 1);
+          this._lastPairingMethod = 'gap';
+          console.log(`[OMR] Grand staff pair (gap=${gapBetween.toFixed(0)}px): groups ${i} & ${i+1}`);
+        }
+      }
+    }
+
+    // ── Tertiary: first-two fallback ───────────────────────────────────────
+    if (clefMap.size === 0 && staffGroups.length === 2) {
+      clefMap.set(staffGroups[0], 'treble');
+      clefMap.set(staffGroups[1], 'bass');
+      this._lastPairingMethod = 'fallback';
+      console.log(`[OMR] Grand staff pair (fallback): first two staves paired`);
+    }
+
+    // Log summary
     console.log(`[OMR] PitchMapper: ${staffGroups.length} staff groups, ${clefMap.size} assigned via grand staff pairs`);
     for (let i = 0; i < staffGroups.length; i++) {
       const g = staffGroups[i];
@@ -324,16 +389,46 @@ export class PitchMapper {
 
     let sharpCount = 0;
     let flatCount = 0;
+    const regionSymbols = []; // diagnostic
 
     for (const s of symbols) {
-      if (s.type !== SymbolType.SHARP && s.type !== SymbolType.FLAT) continue;
       const cx = s.component.centroid.x;
       const cy = s.component.centroid.y;
       if (cy < topLine - margin || cy > bottomLine + margin) continue;
-      if (cx >= clefRightX && cx <= keySigEndX) {
-        if (s.type === SymbolType.SHARP) sharpCount++;
-        else flatCount++;
-      }
+
+      const c = s.component;
+      const inRegion = cx >= clefRightX && cx <= keySigEndX;
+
+      // Collect all symbols in y-range for diagnostics (even outside x-region)
+      regionSymbols.push({
+        type: s.type,
+        cx: Math.round(cx),
+        cy: Math.round(cy),
+        heightSS: c.heightSS != null ? +c.heightSS.toFixed(2) : null,
+        widthSS:  c.widthSS  != null ? +c.widthSS.toFixed(2)  : null,
+        aspectRatio: c.aspectRatio != null ? +c.aspectRatio.toFixed(3) : null,
+        fillRatio: c.fillRatio != null ? +c.fillRatio.toFixed(3) : null,
+        inRegion
+      });
+
+      if (!inRegion) continue;
+
+      const isSharp = s.type === SymbolType.SHARP
+        // Fallback: key sig sharps at small staff sizes may have hSS < 1.2 and be
+        // misclassified as FILLED_NOTEHEAD. Detect them using raw shape features:
+        // sharps are narrow (aspectRatio < 0.7), moderately tall, mid fill.
+        || (c.heightSS >= 0.6 && c.heightSS <= 3.0
+          && c.widthSS >= 0.3 && c.widthSS <= 1.5
+          && c.aspectRatio >= 0.15 && c.aspectRatio < 0.7
+          && c.fillRatio >= 0.15 && c.fillRatio <= 0.70);
+      const isFlat = s.type === SymbolType.FLAT
+        || (c.heightSS >= 0.9 && c.heightSS <= 3.5
+          && c.widthSS >= 0.2 && c.widthSS <= 1.2
+          && c.aspectRatio >= 0.1 && c.aspectRatio < 0.55
+          && c.fillRatio >= 0.2 && c.fillRatio <= 0.70);
+
+      if (isSharp) sharpCount++;
+      else if (isFlat) flatCount++;
     }
 
     // Build affected pitch class sets from circle-of-fifths order
@@ -345,6 +440,15 @@ export class PitchMapper {
     if (sharps.size > 0 || flats.size > 0) {
       console.log(`[OMR] Key signature: ${sharpCount} sharps ${[...sharps].join(',')} | ${flatCount} flats ${[...flats].join(',')}`);
     }
+
+    this._bus.emit('omr:keysig-debug', {
+      clefRightX: Math.round(clefRightX),
+      firstNoteX: firstNoteX === Infinity ? null : Math.round(firstNoteX),
+      keySigEndX: Math.round(keySigEndX),
+      sharpCount,
+      flatCount,
+      regionSymbols
+    });
 
     return { sharps, flats };
   }
@@ -447,20 +551,55 @@ export class PitchMapper {
       SymbolType.WHOLE_NOTE
     ]);
 
-    // Build clef map using grand staff pair detection
-    const clefMap = this._buildClefMap(staffGroups, staffSpace);
+    // Build clef map using grand staff pair detection (cascade: brace → gap → fallback)
+    const clefMap = this._buildClefMap(staffGroups, staffSpace, symbols);
+
+    // Grand staff inter-staff zone: pre-identify middle C noteheads BEFORE the main
+    // assignment loop, so they are not incorrectly claimed by the bass staff's margin.
+    // Any filled notehead between the two staves (outside ledger reach of both) is C4.
+    const interStaffSymbols = new Set();
+    if (this._lastPairingMethod && staffGroups.length >= 2) {
+      let trebleGroup = null, bassGroup = null;
+      for (const [g, c] of clefMap) {
+        if (c === 'treble') trebleGroup = g;
+        else if (c === 'bass') bassGroup = g;
+      }
+      if (trebleGroup && bassGroup) {
+        const trebleBottom = trebleGroup[4]; // lowest treble line (highest y)
+        const bassTop = bassGroup[0];        // highest bass line (lowest y)
+        const interMin = trebleBottom + staffSpace * 2.0;
+        const interMax = bassTop - staffSpace * 2.0;
+        if (interMin < interMax) {
+          for (const s of symbols) {
+            if (!noteTypes.has(s.type)) continue;
+            if (staffSpace > 0 && s.component.centroid.x < staffSpace * 4) continue;
+            const cy = s.component.centroid.y;
+            if (cy >= interMin && cy <= interMax) {
+              interStaffSymbols.add(s);
+            }
+          }
+        }
+      }
+    }
 
     const notes = [];
 
     for (const s of symbols) {
       if (!noteTypes.has(s.type)) continue;
 
+      // Skip noteheads in the clef region — bass clef dots and treble clef body
+      // can look like filled noteheads but are never valid notes
+      if (staffSpace > 0 && s.component.centroid.x < staffSpace * 4) continue;
+
+      // Inter-staff zone noteheads are handled separately as middle C (C4)
+      if (interStaffSymbols.has(s)) continue;
+
       // Find which staff group this note belongs to
       const group = this._findStaffGroup(s.component.centroid.y, staffGroups, staffSpace);
       if (!group) continue;
 
-      // Use override if provided, else positional grand-staff clef, else symbol detection
-      const clef = clefOverride ?? (clefMap.get(group) ?? this.detectClef(symbols, group));
+      // Use override if provided, else positional grand-staff clef, else NCC+symbol detection
+      const clef = clefOverride ?? (clefMap.get(group) ?? this.detectClef(symbols, group, binary, imgWidth, staffSpace));
       const staffPos = this.quantizePosition(s.component.centroid.y, group, staffSpace);
       const { noteName, octave, midiNote } = this.positionToPitch(staffPos, clef);
 
@@ -475,6 +614,22 @@ export class PitchMapper {
       });
     }
 
+    // Assign inter-staff symbols as middle C (C4, staffPos=-2 treble)
+    for (const s of interStaffSymbols) {
+      const { noteName, octave, midiNote } = this.positionToPitch(-2, 'treble');
+      notes.push({
+        symbol: s,
+        staffPos: -2,
+        noteName,
+        octave,
+        midiNote,
+        clef: 'treble',
+        x: s.component.centroid.x
+      });
+      const c = s.component;
+      console.log(`[OMR] Note: ${noteName}${octave}(${midiNote}) staffPos=-2 clef=treble [inter-staff C4] x=${Math.round(c.centroid.x)} y=${Math.round(c.centroid.y)}`);
+    }
+
     // Sort by x-position (left to right)
     notes.sort((a, b) => a.x - b.x);
 
@@ -482,7 +637,9 @@ export class PitchMapper {
     for (const n of notes) {
       const c = n.symbol.component;
       const src = c._splitFrom ? 'SPLIT' : 'orig';
-      console.log(`[OMR] Note: ${n.noteName}${n.octave}(${n.midiNote}) staffPos=${n.staffPos} clef=${n.clef} x=${Math.round(n.x)} y=${Math.round(c.centroid.y)} bbox=${c.bbox.x},${c.bbox.y} ${c.bbox.width}x${c.bbox.height} wSS=${c.widthSS.toFixed(2)} hSS=${c.heightSS.toFixed(2)} [${src}]`);
+      const wss = c.widthSS != null ? c.widthSS.toFixed(2) : '?';
+      const hss = c.heightSS != null ? c.heightSS.toFixed(2) : '?';
+      console.log(`[OMR] Note: ${n.noteName}${n.octave}(${n.midiNote}) staffPos=${n.staffPos} clef=${n.clef} x=${Math.round(n.x)} y=${Math.round(c.centroid.y)} bbox=${c.bbox.x},${c.bbox.y} ${c.bbox.width}x${c.bbox.height} wSS=${wss} hSS=${hss} [${src}]`);
     }
 
     // Detect key signature per staff group and apply accidentals
@@ -514,6 +671,192 @@ export class PitchMapper {
    * @param {number} staffSpace
    * @returns {number[]|null}
    */
+  // ── NCC-based clef detection ────────────────────────────────────────────────
+
+  /**
+   * Detect the clef for a staff group by running NCC against procedurally generated
+   * treble and bass clef templates. Scans only horizontally (x: 0 → 7×staffSpace)
+   * with templates vertically aligned to the staff — far more reliable than relying
+   * on symbol classification labels.
+   *
+   * @param {Uint8Array} binary   — 0=ink, 255=bg
+   * @param {number}     imgWidth
+   * @param {number[]}   staffGroup — 5 staff line y-positions
+   * @param {number}     staffSpace
+   * @returns {'treble'|'bass'|null}  null = no confident match
+   */
+  _detectClefByNCC(binary, imgWidth, staffGroup, staffSpace) {
+    const topLine    = staffGroup[0];
+    const bottomLine = staffGroup[4];
+    const ss = staffSpace;
+
+    const trebleTpl = this._makeTrebleTemplate(ss);
+    const bassTpl   = this._makeBassTemplate(ss);
+
+    // Treble template y0: template top sits 0.9 ss above the staff top line
+    const trebleY0 = Math.round(topLine - ss * 0.9);
+    // Bass template y0: template top sits 0.5 ss above the staff top line
+    const bassY0   = Math.round(topLine - ss * 0.5);
+
+    // Search x = 0 … 7×ss (clef is always at the very left of the staff)
+    const xMax = Math.round(ss * 7);
+
+    const trebleScore = this._nccScanX(binary, imgWidth, trebleTpl, 0, xMax, trebleY0);
+    const bassScore   = this._nccScanX(binary, imgWidth, bassTpl,   0, xMax, bassY0);
+
+    console.log(`[OMR] Clef NCC: treble=${trebleScore.toFixed(3)} bass=${bassScore.toFixed(3)}`);
+
+    const THRESHOLD = 0.25;
+    if (trebleScore < THRESHOLD && bassScore < THRESHOLD) return null;
+    return { clef: trebleScore >= bassScore ? 'treble' : 'bass', trebleScore, bassScore };
+  }
+
+  /**
+   * Scan horizontally for the best NCC match of a template at a fixed y0.
+   * @param {Uint8Array} binary
+   * @param {number}     imgWidth
+   * @param {{data:Uint8Array, w:number, h:number}} tpl
+   * @param {number}     x0
+   * @param {number}     x1
+   * @param {number}     y0  — desired template top (clamped to image bounds)
+   * @returns {number}   best NCC score in [0,1]
+   */
+  _nccScanX(binary, imgWidth, tpl, x0, x1, y0) {
+    const { data, w, h } = tpl;
+    const N   = w * h;
+    const imgH = Math.floor(binary.length / imgWidth);
+
+    const sy = Math.max(0, Math.min(imgH - h, y0));
+
+    // Template mean + std (constant per call)
+    let tSum = 0;
+    for (let i = 0; i < N; i++) tSum += data[i];
+    const tMean = tSum / N;
+    let tVar = 0;
+    for (let i = 0; i < N; i++) { const d = data[i] - tMean; tVar += d * d; }
+    const tStd = Math.sqrt(tVar);
+    if (tStd < 1e-6) return 0;
+
+    let best = -1;
+    const xEnd = Math.min(x1, imgWidth - w);
+    for (let sx = x0; sx <= xEnd; sx++) {
+      // Patch mean
+      let pSum = 0;
+      for (let ty = 0; ty < h; ty++) {
+        const row = (sy + ty) * imgWidth;
+        for (let tx = 0; tx < w; tx++) pSum += binary[row + sx + tx];
+      }
+      const pMean = pSum / N;
+
+      // NCC
+      let num = 0, pVar = 0;
+      for (let ty = 0; ty < h; ty++) {
+        const row = (sy + ty) * imgWidth;
+        for (let tx = 0; tx < w; tx++) {
+          const pv = binary[row + sx + tx] - pMean;
+          const tv = data[ty * w + tx] - tMean;
+          num  += pv * tv;
+          pVar += pv * pv;
+        }
+      }
+      const pStd = Math.sqrt(pVar);
+      if (pStd < 1e-6) continue;
+      const score = num / (pStd * tStd);
+      if (score > best) best = score;
+    }
+    return Math.max(0, best);
+  }
+
+  /**
+   * Generate a treble clef (G clef) template scaled to staffSpace.
+   * Template coords: y increases downward, y=0 at top.
+   * Staff bottom line sits at template y = 4.9×ss; G line at 3.9×ss.
+   * @param {number} ss — staffSpace in pixels
+   * @returns {{data:Uint8Array, w:number, h:number}}
+   */
+  _makeTrebleTemplate(ss) {
+    const w = Math.round(ss * 1.6);
+    const h = Math.round(ss * 5.5);
+    const data = new Uint8Array(w * h).fill(255);
+
+    const stemX  = Math.round(w * 0.42);
+    const stroke = Math.max(1, Math.round(ss * 0.09));
+
+    // 1. Vertical stem (full height)
+    for (let y = 0; y < h; y++)
+      for (let dx = -stroke; dx <= stroke; dx++) {
+        const px = stemX + dx;
+        if (px >= 0 && px < w) data[y * w + px] = 0;
+      }
+
+    // 2. Ring (loop) around the G line (2nd from bottom = 3.9×ss from template top)
+    const loopCY = Math.round(ss * 3.9);
+    const oRX = Math.round(ss * 0.55), oRY = Math.round(ss * 0.72);
+    const iRX = Math.round(ss * 0.28), iRY = Math.round(ss * 0.48);
+    for (let y = Math.max(0, loopCY - oRY - 1); y < Math.min(h, loopCY + oRY + 2); y++)
+      for (let x = 0; x < w; x++) {
+        const dx = x - stemX, dy = y - loopCY;
+        const outer = (dx*dx)/(oRX*oRX) + (dy*dy)/(oRY*oRY);
+        const inner = (dx*dx)/(iRX*iRX) + (dy*dy)/(iRY*iRY);
+        if (outer <= 1.0 && inner > 1.0) data[y * w + x] = 0;
+      }
+
+    // 3. Spiral curl (filled circle below staff bottom line)
+    const sCY = Math.round(ss * 5.2);
+    const sR  = Math.round(ss * 0.35);
+    for (let y = Math.max(0, sCY - sR - 1); y < Math.min(h, sCY + sR + 2); y++)
+      for (let x = 0; x < w; x++) {
+        const dx = x - stemX, dy = y - sCY;
+        if (dx*dx + dy*dy <= sR*sR) data[y * w + x] = 0;
+      }
+
+    return { data, w, h };
+  }
+
+  /**
+   * Generate a bass clef (F clef) template scaled to staffSpace.
+   * Template coords: y=0 at top. Template top sits 0.5×ss above the staff top line.
+   * F line (4th from bottom = 2nd from top) is at template y ≈ 1.5×ss.
+   * @param {number} ss — staffSpace in pixels
+   * @returns {{data:Uint8Array, w:number, h:number}}
+   */
+  _makeBassTemplate(ss) {
+    const w = Math.round(ss * 2.4);
+    const h = Math.round(ss * 2.2);
+    const data = new Uint8Array(w * h).fill(255);
+
+    const stroke = Math.max(1, Math.round(ss * 0.10));
+
+    // C-curve body (arc opening right, centred at ~52% height)
+    const arcCX = Math.round(ss * 0.35);
+    const arcCY = Math.round(h  * 0.52);
+    const arcR  = Math.round(ss * 0.70);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const dx = x - arcCX, dy = y - arcCY;
+        const r = Math.sqrt(dx*dx + dy*dy);
+        if (r >= arcR - stroke && r <= arcR + stroke) {
+          // Skip the right-facing gap (±25° around angle=0)
+          const angle = Math.atan2(dy, dx);
+          if (Math.abs(angle) > Math.PI * 0.22) data[y * w + x] = 0;
+        }
+      }
+
+    // Two dots (F line ± half a space)
+    const dotX  = Math.round(ss * 1.65);
+    const dotR  = Math.max(2, Math.round(ss * 0.16));
+    const dot1Y = Math.round(ss * 0.90);
+    const dot2Y = Math.round(ss * 1.50);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const d1 = (x-dotX)**2 + (y-dot1Y)**2;
+        const d2 = (x-dotX)**2 + (y-dot2Y)**2;
+        if (d1 <= dotR*dotR || d2 <= dotR*dotR) data[y * w + x] = 0;
+      }
+
+    return { data, w, h };
+  }
+
   _findStaffGroup(y, staffGroups, staffSpace) {
     const margin = staffSpace * 2; // allow notes 2 spaces above/below staff (ledger lines)
     let bestGroup = null;

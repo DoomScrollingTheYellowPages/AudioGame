@@ -42,7 +42,11 @@ export class OMREngine {
   async process(file, options = {}) {
     const bpm = options.bpm ?? 120;
     const timeSig = options.timeSig ?? [4, 4];
-    const clef = options.clef || null;
+    // 'grand' means use grand staff auto-detection (brace→gap→fallback cascade)
+    // 'treble'/'bass' force a single-clef override for all staves
+    // null/'auto' uses single-staff NCC detection
+    const clef = (options.clef === 'grand' || !options.clef) ? null : options.clef;
+    const grandStaffMode = options.clef === 'grand';
 
     // Stage 1: Load image
     this._bus.emit('omr:progress', { stage: 1, name: 'Loading image' });
@@ -240,6 +244,20 @@ export class OMREngine {
     // Stage 11: MIDI assembly — merge notes and rests, compute start times
     this._bus.emit('omr:progress', { stage: 11, name: 'Generating MIDI' });
 
+    // Determine if a grand staff pair was detected
+    const isGrandStaff = grandStaffMode && !!this._pitchMapper._lastPairingMethod;
+
+    // Build MIDI key signature meta event from detected key signature
+    const mergedKeySig = { sharps: new Set(), flats: new Set() };
+    for (const group of groups) {
+      const ks = this._pitchMapper.detectKeySignature(symbols, group, staffSpace);
+      for (const s of ks.sharps) mergedKeySig.sharps.add(s);
+      for (const f of ks.flats) mergedKeySig.flats.add(f);
+    }
+    const midiKeySig = (mergedKeySig.sharps.size > 0 || mergedKeySig.flats.size > 0)
+      ? { sf: mergedKeySig.sharps.size > 0 ? mergedKeySig.sharps.size : -mergedKeySig.flats.size, mi: 0 }
+      : null;
+
     // Merge into time-ordered sequence and compute cumulative startBeat
     const allEvents = [
       ...validatedNotes.map(n => ({ ...n, isRest: false })),
@@ -253,20 +271,42 @@ export class OMREngine {
       currentBeat += e.beats;
     }
 
-    const midiNotes = allEvents
-      .filter(n => !n.isRest && n.midiNote > 0)
-      .map(n => ({ note: n.midiNote, beats: n.beats, startBeat: n.startBeat }));
-    console.log(`[OMR] Stage 11: ${midiNotes.length} MIDI notes, ${validatedRests.length} rests integrated`);
+    let midi;
+    let midiNoteCount;
 
-    const midi = MidiWriter.build({
-      bpm,
-      notes: midiNotes,
-      meter: timeSig
-    });
+    if (isGrandStaff) {
+      // Split notes by clef into two tracks (treble = track 1, bass = track 2)
+      const trebleMidi = allEvents
+        .filter(n => !n.isRest && n.midiNote > 0 && n.clef === 'treble')
+        .map(n => ({ note: n.midiNote, beats: n.beats, startBeat: n.startBeat }));
+      const bassMidi = allEvents
+        .filter(n => !n.isRest && n.midiNote > 0 && n.clef === 'bass')
+        .map(n => ({ note: n.midiNote, beats: n.beats, startBeat: n.startBeat }));
+      midiNoteCount = trebleMidi.length + bassMidi.length;
+      console.log(`[OMR] Stage 11 (grand staff): ${trebleMidi.length} treble + ${bassMidi.length} bass MIDI notes → Format 1`);
+      midi = MidiWriter.buildMultiTrack({
+        bpm,
+        tracks: [trebleMidi, bassMidi],
+        meter: timeSig,
+        keySig: midiKeySig
+      });
+    } else {
+      const midiNotes = allEvents
+        .filter(n => !n.isRest && n.midiNote > 0)
+        .map(n => ({ note: n.midiNote, beats: n.beats, startBeat: n.startBeat }));
+      midiNoteCount = midiNotes.length;
+      console.log(`[OMR] Stage 11: ${midiNotes.length} MIDI notes, ${validatedRests.length} rests integrated`);
+      midi = MidiWriter.build({
+        bpm,
+        notes: midiNotes,
+        meter: timeSig,
+        keySig: midiKeySig
+      });
+    }
 
     this._bus.emit('omr:midi', {
       midi,
-      noteCount: midiNotes.length,
+      noteCount: midiNoteCount,
       corrections
     });
 
@@ -275,7 +315,8 @@ export class OMREngine {
       notes: validatedNotes,
       corrections,
       staffInfo: { groups, staffSpace, lineThickness },
-      symbols
+      symbols,
+      keySig: mergedKeySig
     };
   }
 
@@ -416,41 +457,61 @@ export class OMREngine {
 
       // Create synthetic notehead components from each peak
       for (const peak of peaks) {
-        // Use the full peak region — the density threshold already
-        // ensures only notehead-dense rows are included
-        const subBbox = {
-          x: bb.x,
-          y: peak.y,
-          width: bb.width,
-          height: peak.height
-        };
-
-        // Compute area, x-centroid, and y-centroid (centre of mass) within the sub-bbox
+        // First pass: scan peak rows to get area, centroid, and tight x-extent
         let area = 0;
         let sumX = 0;
         let sumY = 0;
-        for (let y = subBbox.y; y < subBbox.y + subBbox.height && y < imgHeight; y++) {
-          for (let x = subBbox.x; x < subBbox.x + subBbox.width && x < imgWidth; x++) {
+        let tightMinX = bb.x + bb.width;
+        let tightMaxX = bb.x - 1;
+        for (let y = peak.y; y < peak.y + peak.height && y < imgHeight; y++) {
+          for (let x = bb.x; x < bb.x + bb.width && x < imgWidth; x++) {
             if (binary[y * imgWidth + x] === 0) {
               area++;
               sumX += x;
               sumY += y;
+              if (x < tightMinX) tightMinX = x;
+              if (x > tightMaxX) tightMaxX = x;
             }
           }
         }
 
         if (area < 5) continue;
 
+        // Clamp sub-bbox width to prevent ledger lines from artificially
+        // widening the component — cap at 1.8× staffSpace centered on x-centroid
+        const centX = Math.round(sumX / area);
+        const rawW = tightMinX <= tightMaxX ? tightMaxX - tightMinX + 1 : bb.width;
+        const maxW = Math.round(staffSpace * 1.8);
+        const tightW = Math.min(rawW, maxW);
+        const subX = Math.max(0, centX - Math.floor(tightW / 2));
+        const subBbox = { x: subX, y: peak.y, width: tightW, height: peak.height };
+
+        // Second pass: recount within clamped bbox for accurate fillRatio
+        let subArea = 0;
+        let subSumX = 0;
+        let subSumY = 0;
+        for (let y = subBbox.y; y < subBbox.y + subBbox.height && y < imgHeight; y++) {
+          for (let x = subBbox.x; x < subBbox.x + subBbox.width && x < imgWidth; x++) {
+            if (binary[y * imgWidth + x] === 0) {
+              subArea++;
+              subSumX += x;
+              subSumY += y;
+            }
+          }
+        }
+
+        if (subArea < 5) continue;
+
         const subComp = {
           label: comp.label,
           bbox: subBbox,
-          centroid: { x: sumX / area, y: sumY / area },
-          area,
-          fillRatio: area / (subBbox.width * subBbox.height),
-          aspectRatio: subBbox.width / subBbox.height,
+          centroid: { x: subSumX / subArea, y: subSumY / subArea },
+          area: subArea,
+          fillRatio: subArea / (tightW * peak.height),
+          aspectRatio: tightW / peak.height,
           holes: 0,
-          widthSS: subBbox.width / staffSpace,
-          heightSS: subBbox.height / staffSpace,
+          widthSS: tightW / staffSpace,
+          heightSS: peak.height / staffSpace,
           _splitFrom: true // marker for debugging
         };
 

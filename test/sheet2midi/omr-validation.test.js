@@ -37,7 +37,8 @@ const TEST_OBJECTS = resolve(REPO_ROOT, 'TestObjects');
  */
 function runPipeline(imagePath, options = {}) {
   const timeSig = options.timeSig ?? [4, 4];
-  const clefOverride = options.clef ?? null;
+  // 'grand' enables automatic grand-staff pairing — not a clef override
+  const clefOverride = (options.clef === 'grand' || !options.clef) ? null : options.clef;
 
   const bus = new MockBus();
   const imageProcessor = new ImageProcessor(bus);
@@ -155,13 +156,15 @@ function runPipeline(imagePath, options = {}) {
   const bars = interiorBarlines + 1;
   const totalBeats = bars * timeSig[0];
 
-  // Normalize notes for comparison: { note, name, beats }
+  // Normalize notes for comparison: { note, name, beats, track? }
+  // track: 1=treble, 2=bass (matches OMREngine buildMultiTrack track order)
   const normalizedNotes = validatedNotes
     .sort((a, b) => a.x - b.x)
     .map(n => ({
       note: n.midiNote,
       name: `${n.noteName}${n.octave}`,
-      beats: n.beats
+      beats: n.beats,
+      track: n.clef === 'treble' ? 1 : n.clef === 'bass' ? 2 : undefined
     }));
 
   return { notes: normalizedNotes, bars, totalBeats };
@@ -248,26 +251,41 @@ function _splitNoteStems(components, binary, imgWidth, imgHeight, staffSpace) {
     }
 
     for (const peak of peaks) {
-      const subBbox = { x: bb.x, y: peak.y, width: bb.width, height: peak.height };
-      let area = 0;
-      let sumX = 0;
-      let sumY = 0;
-      for (let y = subBbox.y; y < subBbox.y + subBbox.height && y < imgHeight; y++) {
-        for (let x = subBbox.x; x < subBbox.x + subBbox.width && x < imgWidth; x++) {
-          if (binary[y * imgWidth + x] === 0) { area++; sumX += x; sumY += y; }
+      let area = 0, sumX = 0, sumY = 0;
+      let tightMinX = bb.x + bb.width, tightMaxX = bb.x - 1;
+      for (let y = peak.y; y < peak.y + peak.height && y < imgHeight; y++) {
+        for (let x = bb.x; x < bb.x + bb.width && x < imgWidth; x++) {
+          if (binary[y * imgWidth + x] === 0) {
+            area++; sumX += x; sumY += y;
+            if (x < tightMinX) tightMinX = x;
+            if (x > tightMaxX) tightMaxX = x;
+          }
         }
       }
       if (area < 5) continue;
+      const centX = Math.round(sumX / area);
+      const rawW = tightMinX <= tightMaxX ? tightMaxX - tightMinX + 1 : bb.width;
+      const maxW = Math.round(staffSpace * 1.8);
+      const tightW = Math.min(rawW, maxW);
+      const subX = Math.max(0, centX - Math.floor(tightW / 2));
+      const subBbox = { x: subX, y: peak.y, width: tightW, height: peak.height };
+      let subArea = 0, subSumX = 0, subSumY = 0;
+      for (let y = subBbox.y; y < subBbox.y + subBbox.height && y < imgHeight; y++) {
+        for (let x = subBbox.x; x < subBbox.x + subBbox.width && x < imgWidth; x++) {
+          if (binary[y * imgWidth + x] === 0) { subArea++; subSumX += x; subSumY += y; }
+        }
+      }
+      if (subArea < 5) continue;
       result.push({
         label: comp.label,
         bbox: subBbox,
-        centroid: { x: sumX / area, y: sumY / area },
-        area,
-        fillRatio: area / (subBbox.width * subBbox.height),
-        aspectRatio: subBbox.width / subBbox.height,
+        centroid: { x: subSumX / subArea, y: subSumY / subArea },
+        area: subArea,
+        fillRatio: subArea / (tightW * peak.height),
+        aspectRatio: tightW / peak.height,
         holes: 0,
-        widthSS: subBbox.width / staffSpace,
-        heightSS: subBbox.height / staffSpace,
+        widthSS: tightW / staffSpace,
+        heightSS: peak.height / staffSpace,
         _splitFrom: true
       });
     }
@@ -312,12 +330,22 @@ function validateFixture(name) {
       `Name mismatch.\nExpected: ${exp.join(', ')}\nGot:      ${got.join(', ')}`);
   });
 
-  it(`${name}: all notes have beats = 1`, () => {
-    for (const n of result.notes) {
-      assert.equal(n.beats, 1,
-        `Note ${n.name} has beats=${n.beats}, expected 1`);
-    }
-  });
+  const allBeatsOne = expected.notes.every(n => n.beats === 1);
+  if (allBeatsOne) {
+    it(`${name}: all notes have beats = 1`, () => {
+      for (const n of result.notes) {
+        assert.equal(n.beats, 1,
+          `Note ${n.name} has beats=${n.beats}, expected 1`);
+      }
+    });
+  } else {
+    it(`${name}: note beats match`, () => {
+      const got = result.notes.map(n => n.beats);
+      const exp = expected.notes.map(n => n.beats);
+      assert.deepEqual(got, exp,
+        `Beats mismatch.\nExpected: ${exp.join(', ')}\nGot:      ${got.join(', ')}`);
+    });
+  }
 
   it(`${name}: bar count equals ${expected.bars}`, () => {
     assert.equal(result.bars, expected.bars,
@@ -329,6 +357,15 @@ function validateFixture(name) {
     assert.equal(sum, expected.totalBeats,
       `Sum of beats = ${sum}, expected ${expected.totalBeats}`);
   });
+
+  if (expected.clef === 'grand') {
+    it(`${name}: track assignment matches (treble=1, bass=2)`, () => {
+      const got = result.notes.map(n => n.track);
+      const exp = expected.notes.map(n => n.track);
+      assert.deepEqual(got, exp,
+        `Track mismatch.\nExpected: ${exp.join(', ')}\nGot:      ${got.join(', ')}`);
+    });
+  }
 }
 
 // ── Test suites ───────────────────────────────
@@ -343,4 +380,12 @@ describe('OMR Validation: AMinorScale', () => {
 
 describe('OMR Validation: BassStaffScale', () => {
   validateFixture('BassStaffScale');
+});
+
+describe('OMR Validation: grandstaffmono1', () => {
+  validateFixture('grandstaffmono1');
+});
+
+describe('OMR Validation: MixedDurations', () => {
+  validateFixture('MixedDurations');
 });

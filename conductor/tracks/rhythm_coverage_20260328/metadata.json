@@ -1,0 +1,8 @@
+{
+  "track_id": "rhythm_coverage_20260328",
+  "type": "test",
+  "status": "in_progress",
+  "created_at": "2026-03-28T00:00:00Z",
+  "updated_at": "2026-03-28T00:00:00Z",
+  "description": "MidiParser & HitJudge Test Coverage — comprehensive unit tests for two critical untested production modules in the rhythm game, plus lightweight Synth tests"
+}

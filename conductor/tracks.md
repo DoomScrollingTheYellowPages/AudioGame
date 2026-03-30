@@ -24,10 +24,42 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [ ] Track: OMR Validation & Ground Truth Testing
+## [x] Track: OMR Validation & Ground Truth Testing
 *Link: [./conductor/tracks/omr_validation_20260328/](./conductor/tracks/omr_validation_20260328/)*
 
 ---
 
-## [ ] Track: Bass Staff Support (OMR Pipeline)
+## [x] Track: Bass Staff Support (OMR Pipeline)
 *Link: [./conductor/tracks/bass_staff_20260328/](./conductor/tracks/bass_staff_20260328/)*
+
+---
+
+## [x] Track: OMR Playback Preview
+*Link: [./conductor/tracks/omr_playback_20260328/](./conductor/tracks/omr_playback_20260328/)*
+
+---
+
+## [x] Track: More Demo Songs
+*Link: [./conductor/tracks/more_songs_20260328/](./conductor/tracks/more_songs_20260328/)*
+
+---
+
+## [x] Track: OMR Note Deduplication
+*Link: [./conductor/tracks/omr_dedup_20260328/](./conductor/tracks/omr_dedup_20260328/)*
+
+---
+
+## [x] Track: MidiParser & HitJudge Test Coverage
+*Link: [./conductor/tracks/rhythm_coverage_20260328/](./conductor/tracks/rhythm_coverage_20260328/)*
+
+---
+
+## [x] Track: EventBus & utils Test Coverage
+*Link: [./conductor/tracks/core_coverage_20260328/](./conductor/tracks/core_coverage_20260328/)*
+
+---
+
+## [~] Track: OMR Pipeline Phase 2 — Key Signatures, Rhythm Verification & Grand Staff Tests
+*Link: [./conductor/tracks/omr_phase2_20260328/](./conductor/tracks/omr_phase2_20260328/)*
+
+

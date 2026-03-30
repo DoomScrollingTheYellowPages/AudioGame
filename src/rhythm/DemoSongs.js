@@ -182,6 +182,127 @@ const SONGS = {
     })(),
   },
 
+  'twinkle': {
+    name: 'Twinkle Twinkle Little Star',
+    bpm: 100,
+    meter: [4, 4],
+    notes: buildSequence(
+      // C C G G A A G  / F F E E D D C  / G G F F E E D  / G G F F E E D  / C C G G A A G  / F F E E D D C
+      [60, 60, 67, 67, 69, 69, 67,
+       65, 65, 64, 64, 62, 62, 60,
+       67, 67, 65, 65, 64, 64, 62,
+       67, 67, 65, 65, 64, 64, 62,
+       60, 60, 67, 67, 69, 69, 67,
+       65, 65, 64, 64, 62, 62, 60],
+      100,
+    ),
+  },
+
+  'chromatic-scale': {
+    name: 'Chromatic Scale (C4–C5)',
+    bpm: 80,
+    meter: [4, 4],
+    notes: buildSequence(
+      // All 12 semitones up then down
+      [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72,
+       71, 70, 69, 68, 67, 66, 65, 64, 63, 62, 61, 60],
+      80,
+    ),
+  },
+
+  'happy-birthday': {
+    name: 'Happy Birthday',
+    bpm: 95,
+    meter: [3, 4],
+    notes: (() => {
+      const ms = 60000 / 95;
+      // Standard key of C, format [midiNote, beats]
+      const seq = [
+        // Happy birth-day to you
+        [60, 0.5], [60, 0.5], [62, 1],
+        [60, 1],   [65, 1],   [64, 2],
+        // Happy birth-day to you
+        [60, 0.5], [60, 0.5], [62, 1],
+        [60, 1],   [67, 1],   [65, 2],
+        // Happy birth-day dear [name]
+        [60, 0.5], [60, 0.5], [72, 1],
+        [69, 1],   [65, 1],   [64, 1], [62, 1],
+        // Happy birth-day to you
+        [70, 0.5], [70, 0.5], [69, 1],
+        [65, 1],   [67, 1],   [65, 2],
+      ];
+      const notes = [];
+      let t = 0;
+      for (const [note, beats] of seq) {
+        notes.push({ time: t, note, velocity: 90, duration: ms * beats * 0.85 });
+        t += ms * beats;
+      }
+      return notes;
+    })(),
+  },
+
+  'jingle-bells': {
+    name: 'Jingle Bells',
+    bpm: 120,
+    meter: [4, 4],
+    notes: buildSequence(
+      // Key of C — verse + chorus (includes no sharps in this arrangement)
+      // E E E  E E E  E G C D E  F F F F  F E E E  E D D E D G
+      // E E E  E E E  E G C D E  F F F F  F E E G  G F D C
+      [64, 64, 64,
+       64, 64, 64,
+       64, 67, 60, 62, 64,
+       65, 65, 65, 65,
+       65, 64, 64, 64,
+       64, 62, 62, 64, 62, 67,
+       64, 64, 64,
+       64, 64, 64,
+       64, 67, 60, 62, 64,
+       65, 65, 65, 65,
+       65, 64, 64, 64,
+       67, 67, 65, 62, 60],
+      120,
+    ),
+  },
+
+  'greensleeves': {
+    name: 'Greensleeves',
+    bpm: 80,
+    meter: [3, 4],
+    notes: (() => {
+      const ms = 60000 / 80;
+      // Traditional Dorian melody — includes Bb (A#) in the B section
+      const seq = [
+        // ── A section ──
+        [69, 1],                                       // A
+        [72, 2], [74, 1],                              // C D
+        [75, 2], [74, 1],                              // Eb D  — approx with Eb→E
+        [72, 2], [69, 1],                              // C A
+        [65, 2], [65, 1],                              // F F
+        [67, 2], [65, 1],                              // G F
+        [64, 2], [62, 1],                              // E D
+        [60, 2], [62, 1],                              // C D
+        [63, 2], [65, 1],                              // Eb F (approx)
+        [67, 2], [69, 1],                              // G A
+        [72, 2], [74, 1],                              // C D
+        [75, 2], [74, 1],                              // Eb D
+        [72, 2], [69, 1],                              // C A
+        [65, 3],                                       // F
+        [64, 2], [65, 1],                              // E F
+        [67, 2], [65, 1],                              // G F
+        [64, 2], [62, 1],                              // E D
+        [60, 3],                                       // C
+      ];
+      const notes = [];
+      let t = 0;
+      for (const [note, beats] of seq) {
+        notes.push({ time: t, note, velocity: 85, duration: ms * beats * 0.85 });
+        t += ms * beats;
+      }
+      return notes;
+    })(),
+  },
+
   'speed-drill': {
     name: 'Speed Drill (C–G)',
     bpm: 140,

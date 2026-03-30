@@ -89,13 +89,51 @@ describe('SymbolClassifier', () => {
       assert.equal(sc.classifyHeuristic(c), SymbolType.BEAM);
     });
 
-    it('classifies a sharp accidental', () => {
+    it('classifies a thin beam after 2x upscale + morphClose boundary erosion (heightSS=0.125)', () => {
       const bus = new MockBus();
       const sc = new SymbolClassifier(bus);
-      // Sharp must not match rest_quarter (rest: widthSS 0.5-1.5, heightSS 2.0-4.0, aspect 0.25-0.85)
-      // Use widthSS < 0.5 and lower aspect to avoid rest_quarter
+      // Real measured: 5px tall beam at 2x (staffSpace=40), eroded to heightSS=0.125 by morphClose
       const c = fakeComponent({
-        aspectRatio: 0.35, fillRatio: 0.35, widthSS: 0.45, heightSS: 1.8, holes: 0
+        aspectRatio: 37.0, fillRatio: 1.0, widthSS: 4.65, heightSS: 0.125, holes: 0
+      });
+      assert.equal(sc.classifyHeuristic(c), SymbolType.BEAM);
+    });
+
+    it('classifies a short stem after medianFilter shrinkage (heightSS=1.95)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      // Real measured: 39px stem at 1x (staffSpace=20), medianFilter removes 1px each end
+      const c = fakeComponent({
+        aspectRatio: 0.05, fillRatio: 1.0, widthSS: 0.10, heightSS: 1.95, holes: 0
+      });
+      assert.equal(sc.classifyHeuristic(c), SymbolType.STEM);
+    });
+
+    it('classifies a sharp accidental (small inline)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      const c = fakeComponent({
+        aspectRatio: 0.35, fillRatio: 0.35, widthSS: 0.6, heightSS: 1.8, holes: 0
+      });
+      assert.equal(sc.classifyHeuristic(c), SymbolType.SHARP);
+    });
+
+    it('classifies a key-sig sharp (larger, previously caught by rest/flag rules)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      // Key-sig sharps span ~2 staff spaces; aspectRatio ~0.45, sparse fill ~0.30
+      const c = fakeComponent({
+        aspectRatio: 0.45, fillRatio: 0.30, widthSS: 0.85, heightSS: 2.1, holes: 0
+      });
+      assert.equal(sc.classifyHeuristic(c), SymbolType.SHARP);
+    });
+
+    it('classifies GMajorScaleTrebleAscending key-sig sharp (fillRatio=0.655)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      // Real measured values from GMajorScaleTrebleAscending.png sharp at cx=109
+      const c = fakeComponent({
+        aspectRatio: 0.45, fillRatio: 0.655, widthSS: 0.85, heightSS: 2.1, holes: 0
       });
       assert.equal(sc.classifyHeuristic(c), SymbolType.SHARP);
     });
@@ -107,6 +145,45 @@ describe('SymbolClassifier', () => {
         aspectRatio: 10.0, fillRatio: 0.1, widthSS: 50, heightSS: 50, holes: 5
       });
       assert.equal(sc.classifyHeuristic(c), SymbolType.UNKNOWN);
+    });
+
+    // ── Brace ──────────────────────────────────
+    it('classifies a grand staff brace (tall narrow curve on left margin)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      // Brace: spans both staves, very tall, narrow, low fill (just the curve strokes)
+      const c = fakeComponent({
+        aspectRatio: 0.08, fillRatio: 0.18, widthSS: 0.6, heightSS: 8.5, holes: 0,
+        centroid: { x: 15, y: 200 }
+      });
+      assert.equal(sc.classifyHeuristic(c), SymbolType.BRACE);
+    });
+
+    it('does not classify a bar line as a brace (too short)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      const c = fakeComponent({
+        aspectRatio: 0.05, fillRatio: 0.9, widthSS: 0.08, heightSS: 4.0, holes: 0
+      });
+      assert.notEqual(sc.classifyHeuristic(c), SymbolType.BRACE);
+    });
+
+    it('does not classify a stem as a brace (too high fill, too short)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      const c = fakeComponent({
+        aspectRatio: 0.1, fillRatio: 0.9, widthSS: 0.15, heightSS: 3.0, holes: 0
+      });
+      assert.notEqual(sc.classifyHeuristic(c), SymbolType.BRACE);
+    });
+
+    it('does not classify a treble clef as a brace (too short, wrong aspect)', () => {
+      const bus = new MockBus();
+      const sc = new SymbolClassifier(bus);
+      const c = fakeComponent({
+        aspectRatio: 0.35, fillRatio: 0.35, widthSS: 1.2, heightSS: 4.5, holes: 1
+      });
+      assert.notEqual(sc.classifyHeuristic(c), SymbolType.BRACE);
     });
   });
 

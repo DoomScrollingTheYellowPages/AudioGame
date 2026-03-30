@@ -33,6 +33,10 @@ noteButtons.forEach(btn => {
   btn.addEventListener('click', () => game.submitAnswer(btn.dataset.note));
 });
 
+// ── Clef select ──
+const clefSelect = document.getElementById('clef-select');
+clefSelect.addEventListener('change', () => game.setClefMode(clefSelect.value));
+
 // ── Representation select ──
 const reprSelect = document.getElementById('repr-select');
 reprSelect.addEventListener('change', () => game.setMode(reprSelect.value));

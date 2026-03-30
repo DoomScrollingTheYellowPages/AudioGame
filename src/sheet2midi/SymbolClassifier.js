@@ -21,6 +21,7 @@ export const SymbolType = {
   FLAG_SIXTEENTH: 'flag_sixteenth',
   CLEF_TREBLE: 'clef_treble',
   CLEF_BASS: 'clef_bass',
+  BRACE: 'brace',
   TIME_SIG: 'time_sig',
   SHARP: 'sharp',
   FLAT: 'flat',
@@ -43,9 +44,10 @@ const RULES = [
   {
     type: SymbolType.CLEF_TREBLE,
     test: (c) => c.heightSS >= 3.0
-      && c.widthSS >= 0.8 && c.widthSS <= 4.0
-      && c.aspectRatio >= 0.15 && c.aspectRatio <= 0.7
-      && c.fillRatio >= 0.2 && c.fillRatio <= 0.7
+      && c.widthSS >= 0.8 && c.widthSS <= 3.5
+      && c.aspectRatio >= 0.15 && c.aspectRatio <= 0.65
+      && c.fillRatio >= 0.15 && c.fillRatio <= 0.65
+      && c.holes >= 1   // treble clef loop creates an enclosed white region
   },
   {
     type: SymbolType.CLEF_BASS,
@@ -53,6 +55,14 @@ const RULES = [
       && c.widthSS >= 0.8 && c.widthSS <= 3.0
       && c.aspectRatio >= 0.6 && c.aspectRatio <= 1.5
       && c.fillRatio >= 0.3
+  },
+  // ── Grand staff brace (check before bar_line/stem — taller than both) ──
+  {
+    type: SymbolType.BRACE,
+    test: (c) => c.heightSS >= 6.0
+      && c.widthSS >= 0.3 && c.widthSS <= 1.5
+      && c.aspectRatio < 0.25
+      && c.fillRatio < 0.35
   },
   // ── Tall thin symbols ──
   {
@@ -67,14 +77,14 @@ const RULES = [
     test: (c) => c.aspectRatio >= 0.03 && c.aspectRatio <= 0.3
       && c.fillRatio > 0.7
       && c.widthSS >= 0.05 && c.widthSS <= 0.4
-      && c.heightSS >= 2.0
+      && c.heightSS >= 1.8
   },
   // ── Wide symbols ──
   {
     type: SymbolType.BEAM,
     test: (c) => c.aspectRatio > 2.5
       && c.fillRatio > 0.6
-      && c.heightSS >= 0.2 && c.heightSS <= 0.7
+      && c.heightSS >= 0.08 && c.heightSS <= 0.7
       && c.widthSS > 1.5
   },
   // ── Noteheads ──
@@ -86,6 +96,16 @@ const RULES = [
       && c.heightSS >= 0.3 && c.heightSS <= 1.8
       && c.holes === 0
   },
+  // Whole note: checked BEFORE open notehead — wider (wSS≥1.3) with thinner ring (fill≤0.65)
+  {
+    type: SymbolType.WHOLE_NOTE,
+    test: (c) => c.aspectRatio >= 1.1 && c.aspectRatio <= 2.5
+      && c.fillRatio >= 0.25 && c.fillRatio <= 0.65
+      && c.widthSS >= 1.3 && c.widthSS <= 2.5
+      && c.heightSS >= 0.5 && c.heightSS <= 1.8
+      && c.holes >= 1
+  },
+  // Open notehead (half note): narrower than whole note (wSS < 1.3 typical)
   {
     type: SymbolType.OPEN_NOTEHEAD,
     test: (c) => c.aspectRatio >= 0.7 && c.aspectRatio <= 2.0
@@ -94,37 +114,14 @@ const RULES = [
       && c.heightSS >= 0.3 && c.heightSS <= 1.8
       && c.holes >= 1
   },
-  {
-    type: SymbolType.WHOLE_NOTE,
-    test: (c) => c.aspectRatio >= 1.1 && c.aspectRatio <= 2.2
-      && c.fillRatio >= 0.25 && c.fillRatio <= 0.65
-      && c.widthSS >= 0.9 && c.widthSS <= 2.0
-      && c.heightSS >= 0.6 && c.heightSS <= 1.5
-      && c.holes >= 1
-  },
-  // ── Rests & flags ──
-  {
-    type: SymbolType.REST_QUARTER,
-    test: (c) => c.aspectRatio >= 0.25 && c.aspectRatio <= 0.85
-      && c.fillRatio >= 0.35 && c.fillRatio <= 0.75
-      && c.widthSS >= 0.5 && c.widthSS <= 1.5
-      && c.heightSS >= 2.0 && c.heightSS <= 4.0
-  },
-  {
-    type: SymbolType.FLAG_EIGHTH,
-    test: (c) => c.aspectRatio >= 0.4 && c.aspectRatio <= 1.2
-      && c.fillRatio >= 0.3 && c.fillRatio <= 0.7
-      && c.widthSS >= 0.4 && c.widthSS <= 1.2
-      && c.heightSS >= 1.0 && c.heightSS <= 2.5
-  },
-  // ── Accidentals ──────────────────────────────
-  // Sharp: tall vertical strokes with horizontal cross-bars, narrow-ish
+  // ── Accidentals (before rests/flags — key-sig sharps at heightSS≥2 overlap) ──
+  // Sharp: two vertical strokes with two horizontal cross-bars
   {
     type: SymbolType.SHARP,
     test: (c) => c.heightSS >= 1.2 && c.heightSS <= 3.0
       && c.widthSS >= 0.4 && c.widthSS <= 1.5
       && c.aspectRatio >= 0.2 && c.aspectRatio <= 0.8
-      && c.fillRatio >= 0.2 && c.fillRatio <= 0.6
+      && c.fillRatio >= 0.15 && c.fillRatio <= 0.70
   },
   // Flat: tall stem with a round belly at the bottom, narrow
   {
@@ -141,6 +138,21 @@ const RULES = [
       && c.widthSS >= 0.3 && c.widthSS <= 1.0
       && c.aspectRatio >= 0.15 && c.aspectRatio <= 0.5
       && c.fillRatio >= 0.15 && c.fillRatio <= 0.5
+  },
+  // ── Rests & flags ──
+  {
+    type: SymbolType.REST_QUARTER,
+    test: (c) => c.aspectRatio >= 0.25 && c.aspectRatio <= 0.85
+      && c.fillRatio >= 0.35 && c.fillRatio <= 0.75
+      && c.widthSS >= 0.5 && c.widthSS <= 1.5
+      && c.heightSS >= 2.0 && c.heightSS <= 4.0
+  },
+  {
+    type: SymbolType.FLAG_EIGHTH,
+    test: (c) => c.aspectRatio >= 0.4 && c.aspectRatio <= 1.2
+      && c.fillRatio >= 0.3 && c.fillRatio <= 0.7
+      && c.widthSS >= 0.4 && c.widthSS <= 1.2
+      && c.heightSS >= 1.0 && c.heightSS <= 2.5
   }
 ];
 

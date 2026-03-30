@@ -6,6 +6,7 @@
 import { EventBus } from './core/EventBus.js';
 import { OMREngine } from './sheet2midi/OMREngine.js';
 import { OMRDebugOverlay } from './sheet2midi/OMRDebugOverlay.js';
+import { OMRPlayer } from './sheet2midi/OMRPlayer.js';
 
 // ── Constants ──────────────────────────────────
 
@@ -34,6 +35,7 @@ const statNotes = document.getElementById('stat-notes');
 const statStaves = document.getElementById('stat-staves');
 const statMeasures = document.getElementById('stat-measures');
 const downloadBtn = document.getElementById('download-btn');
+const playBtn = document.getElementById('play-btn');
 const correctionsLog = document.getElementById('corrections-log');
 const correctionsList = document.getElementById('corrections-list');
 const errorMsg = document.getElementById('error-msg');
@@ -51,10 +53,16 @@ const clefSelect = document.getElementById('clef-select');
 const bus = new EventBus();
 const engine = new OMREngine(bus);
 const overlay = new OMRDebugOverlay(overlayCanvas);
+const player = new OMRPlayer();
 let selectedFile = null;
 let lastMidiBuffer = null;
+let lastPlaybackNotes = null;
+let lastPlaybackBpm = 120;
 let pdfDoc = null;
 let pdfPage = 1;
+let _clefDetections = []; // captured per-run from omr:clef-detected events
+let _keySigDebug = [];   // captured per-run from omr:keysig-debug events
+let _lastDebugData = null; // full debug snapshot for JSON export
 
 // ── PDF.js lazy loader ─────────────────────────
 
@@ -139,6 +147,12 @@ async function selectFile(file) {
   errorMsg.classList.remove('active');
   progressArea.classList.remove('active');
   pageSelector.classList.remove('active');
+  overlayCanvas.classList.remove('active');
+  vizNav.classList.remove('active');
+  debugResults.classList.remove('active');
+  debugContent.innerHTML = '';
+  debugCopyBtn.style.display = 'none';
+  _lastDebugData = null;
 
   uploadArea.querySelector('h2').textContent = file.name;
   uploadArea.querySelector('p').textContent =
@@ -211,6 +225,9 @@ processBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
 
   processBtn.disabled = true;
+  player.stop();
+  playBtn.textContent = '▶ Play';
+  playBtn.disabled = true;
   progressArea.classList.add('active');
   resultsArea.classList.remove('active');
   overlayCanvas.classList.remove('active');
@@ -218,6 +235,8 @@ processBtn.addEventListener('click', async () => {
   errorMsg.classList.remove('active');
   correctionsLog.classList.remove('active');
   overlay.reset();
+  _clefDetections = [];
+  _keySigDebug = [];
 
   const bpm = parseInt(bpmInput.value, 10) || 120;
   const [num, den] = timeSigSelect.value.split('/').map(Number);
@@ -237,6 +256,14 @@ processBtn.addEventListener('click', async () => {
     });
 
     lastMidiBuffer = result.midi;
+    lastPlaybackBpm = bpm;
+    // Sort notes by x-position for sequential playback (handles grand staff interleaving)
+    lastPlaybackNotes = result.notes
+      .filter(n => n.midiNote > 0)
+      .sort((a, b) => (a.symbol?.component?.centroid?.x ?? 0) - (b.symbol?.component?.centroid?.x ?? 0));
+    player.stop();
+    playBtn.textContent = '▶ Play';
+    playBtn.disabled = lastPlaybackNotes.length === 0;
 
     // Show results
     statNotes.textContent = result.notes.filter(n => n.midiNote > 0).length;
@@ -293,6 +320,14 @@ bus.on('omr:progress', ({ stage, name }) => {
   progressText.textContent = `Stage ${stage}/11: ${name}`;
 });
 
+bus.on('omr:clef-detected', (data) => {
+  _clefDetections.push(data);
+});
+
+bus.on('omr:keysig-debug', (data) => {
+  _keySigDebug.push(data);
+});
+
 // ── Pipeline Debug Overlay ──────────────────────
 
 bus.on('omr:debug', (stepData) => {
@@ -326,6 +361,7 @@ vizNext.addEventListener('click', () => {
 const debugToggle = document.getElementById('debug-toggle');
 const debugResults = document.getElementById('debug-results');
 const debugContent = document.getElementById('debug-content');
+const debugCopyBtn = document.getElementById('debug-copy-btn');
 
 // Expected results for test images
 const TEST_EXPECTED = {
@@ -341,6 +377,45 @@ debugToggle.addEventListener('change', () => {
   if (!debugToggle.checked) debugResults.classList.remove('active');
 });
 
+debugCopyBtn.addEventListener('click', () => {
+  if (!_lastDebugData) return;
+  const json = JSON.stringify(_lastDebugData, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'debugdata.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  debugCopyBtn.textContent = 'Saved!';
+  debugCopyBtn.classList.add('copied');
+  setTimeout(() => {
+    debugCopyBtn.textContent = 'Save JSON';
+    debugCopyBtn.classList.remove('copied');
+  }, 1500);
+});
+
+/** Convert beats to a readable duration name. */
+function beatsToName(beats) {
+  const map = [
+    [4,    'whole'],
+    [3,    'dot. half'],
+    [2,    'half'],
+    [1.5,  'dot. qtr'],
+    [1,    'quarter'],
+    [0.75, 'dot. 8th'],
+    [0.5,  'eighth'],
+    [0.25, '16th'],
+    [0.125,'32nd'],
+  ];
+  for (const [v, name] of map) {
+    if (Math.abs(beats - v) < 0.01) return name;
+  }
+  return `${beats}b`;
+}
+
 /** @param {object} result - from engine.process() */
 function renderDebugResults(result, fileName) {
   if (!debugToggle.checked) return;
@@ -350,19 +425,84 @@ function renderDebugResults(result, fileName) {
 
   let html = '';
 
-  // Staff info
+  // ── Staff Detection ────────────────────────────────────────────────────────
   html += '<h4>Staff Detection</h4>';
-  html += `<p>Groups: ${result.staffInfo.groups.length}, staffSpace: ${result.staffInfo.staffSpace}px, lineThick: ${result.staffInfo.lineThickness}px</p>`;
+  html += `<p>Groups: ${result.staffInfo.groups.length} | staffSpace: ${result.staffInfo.staffSpace}px | lineThick: ${result.staffInfo.lineThickness}px</p>`;
 
-  // Notes table
+  // ── Key Signature ──────────────────────────────────────────────────────────
+  html += '<h4>Key Signature</h4>';
+  const ks = result.keySig;
+  if (!ks || (ks.sharps.size === 0 && ks.flats.size === 0)) {
+    html += '<p class="mismatch">None detected (C major / A minor)</p>';
+  } else if (ks.sharps.size > 0) {
+    const sf = ks.sharps.size;
+    html += `<p class="match">${sf} sharp${sf > 1 ? 's' : ''}: ${[...ks.sharps].join(', ')} &nbsp;(MIDI sf=${sf})</p>`;
+  } else {
+    const sf = ks.flats.size;
+    html += `<p class="match">${sf} flat${sf > 1 ? 's' : ''}: ${[...ks.flats].join(', ')} &nbsp;(MIDI sf=−${sf})</p>`;
+  }
+
+  // Key sig region diagnostics
+  if (_keySigDebug.length > 0) {
+    for (let si = 0; si < _keySigDebug.length; si++) {
+      const d = _keySigDebug[si];
+      html += `<p style="color:var(--mid);font-size:10px">Staff ${si + 1}: clefRightX=${d.clefRightX} firstNoteX=${d.firstNoteX ?? '∞'} keySigEndX=${d.keySigEndX} → ${d.sharpCount}♯ ${d.flatCount}♭</p>`;
+      if (d.regionSymbols.length > 0) {
+        html += '<table><tr><th>Type</th><th>cx</th><th>hSS</th><th>wSS</th><th>AR</th><th>Fill</th><th>In Region</th></tr>';
+        for (const sym of d.regionSymbols) {
+          const inReg = sym.inRegion ? '<span class="match">✓</span>' : '<span class="mismatch">✗</span>';
+          html += `<tr>`;
+          html += `<td>${sym.type}</td>`;
+          html += `<td>${sym.cx}</td>`;
+          html += `<td>${sym.heightSS ?? '?'}</td>`;
+          html += `<td>${sym.widthSS ?? '?'}</td>`;
+          html += `<td>${sym.aspectRatio ?? '?'}</td>`;
+          html += `<td>${sym.fillRatio ?? '?'}</td>`;
+          html += `<td>${inReg}</td>`;
+          html += `</tr>`;
+        }
+        html += '</table>';
+      }
+    }
+  }
+
+  // ── Clef Detection ─────────────────────────────────────────────────────────
+  html += '<h4>Clef Detection</h4>';
+  const clefOverrideVal = clefSelect.value || null;
+  if (clefOverrideVal) {
+    html += `<p><strong>Override active:</strong> ${clefOverrideVal} (auto-detection skipped)</p>`;
+  } else if (_clefDetections.length === 0) {
+    html += `<p class="mismatch">No clef detection events received — clef may have come from grand-staff pairing or override.</p>`;
+  } else {
+    html += '<table><tr><th>#</th><th>Clef Used</th><th>Method</th><th>Treble NCC</th><th>Bass NCC</th></tr>';
+    _clefDetections.forEach((d, i) => {
+      const tScore = d.trebleNCC != null ? d.trebleNCC.toFixed(3) : '—';
+      const bScore = d.bassNCC  != null ? d.bassNCC.toFixed(3)  : '—';
+      html += `<tr>`;
+      html += `<td>${i + 1}</td>`;
+      html += `<td><strong>${d.clef}</strong></td>`;
+      html += `<td>${d.method}</td>`;
+      html += `<td>${tScore}</td>`;
+      html += `<td>${bScore}</td>`;
+      html += `</tr>`;
+    });
+    html += '</table>';
+  }
+
+  // ── Detected Notes ─────────────────────────────────────────────────────────
   html += '<h4>Detected Notes</h4>';
   if (expected) {
     html += `<p class="debug-expected">Expected: ${expected.notes.join(', ')} (MIDI: ${expected.midi.join(', ')})</p>`;
   }
-  html += '<table><tr><th>#</th><th>Name</th><th>Oct</th><th>MIDI</th><th>Clef</th><th>StaffPos</th><th>X</th><th>Match</th></tr>';
+  html += '<table><tr><th>#</th><th>Name</th><th>Acc</th><th>Oct</th><th>MIDI</th><th>Dur</th><th>Clef</th><th>StaffPos</th><th>X</th><th>Match</th></tr>';
   for (let i = 0; i < notes.length; i++) {
     const n = notes[i];
     const detected = `${n.noteName}${n.octave}`;
+    const acc = n.noteName.endsWith('#') ? '#'
+              : n.noteName.endsWith('b') ? 'b'
+              : '';
+    const baseName = acc ? n.noteName.slice(0, -1) : n.noteName;
+    const dur = beatsToName(n.beats ?? 1);
     let matchClass = '';
     let matchText = '';
     if (expected && i < expected.notes.length) {
@@ -372,9 +512,11 @@ function renderDebugResults(result, fileName) {
     }
     html += `<tr>`;
     html += `<td>${i + 1}</td>`;
-    html += `<td>${n.noteName}</td>`;
+    html += `<td>${baseName}</td>`;
+    html += `<td class="${acc ? 'match' : ''}">${acc}</td>`;
     html += `<td>${n.octave}</td>`;
     html += `<td>${n.midiNote}</td>`;
+    html += `<td>${dur}</td>`;
     html += `<td>${n.clef}</td>`;
     html += `<td>${n.staffPos}</td>`;
     html += `<td>${Math.round(n.symbol.component.centroid.x)}</td>`;
@@ -383,7 +525,7 @@ function renderDebugResults(result, fileName) {
   }
   html += '</table>';
 
-  // Summary
+  // ── Note Accuracy Summary ──────────────────────────────────────────────────
   const noteCount = notes.length;
   const expectedCount = expected ? expected.notes.length : '?';
   let correctCount = 0;
@@ -396,24 +538,59 @@ function renderDebugResults(result, fileName) {
     }
   }
   html += '<h4>Summary</h4>';
-  html += `<p>Notes: ${noteCount}/${expectedCount}`;
+  html += `<p>Notes detected: ${noteCount}/${expectedCount}`;
   if (expected) {
     const pct = expectedCount > 0 ? Math.round(correctCount / expectedCount * 100) : 0;
     html += ` | Correct: <span class="${pct === 100 ? 'match' : 'mismatch'}">${correctCount}/${expectedCount} (${pct}%)</span>`;
   }
   html += '</p>';
 
-  // Symbols breakdown
-  html += '<h4>All Symbols</h4>';
+  // ── Symbol Breakdown ───────────────────────────────────────────────────────
+  // Group symbols into categories rather than a raw flat list
+  const SYMBOL_GROUPS = {
+    'Noteheads': ['filled_notehead', 'open_notehead', 'whole_note'],
+    'Rests': ['whole_rest', 'half_rest', 'quarter_rest', 'eighth_rest'],
+    'Clefs': ['clef_treble', 'clef_bass'],
+    'Structure': ['bar_line', 'double_bar', 'time_sig', 'brace'],
+    'Accidentals': ['sharp', 'flat', 'natural'],
+    'Augmentation': ['dot', 'double_dot'],
+    'Flags & Beams': ['flag', 'beam', 'stem'],
+    'Unknown': ['unknown']
+  };
+
+  const allCounted = new Set();
+  html += '<h4>Symbols by Category</h4>';
+  html += '<table><tr><th>Category</th><th>Type</th><th>Count</th></tr>';
+
   const typeCounts = {};
   for (const s of result.symbols) typeCounts[s.type] = (typeCounts[s.type] || 0) + 1;
-  html += '<table><tr><th>Type</th><th>Count</th></tr>';
-  for (const [type, count] of Object.entries(typeCounts).sort()) {
-    html += `<tr><td>${type}</td><td>${count}</td></tr>`;
+
+  for (const [groupName, types] of Object.entries(SYMBOL_GROUPS)) {
+    const relevant = types.filter(t => typeCounts[t] > 0);
+    if (relevant.length === 0) continue;
+    const groupTotal = relevant.reduce((acc, t) => acc + typeCounts[t], 0);
+    html += `<tr><td><strong>${groupName}</strong></td><td></td><td><strong>${groupTotal}</strong></td></tr>`;
+    for (const t of relevant) {
+      html += `<tr><td></td><td>${t}</td><td>${typeCounts[t]}</td></tr>`;
+      allCounted.add(t);
+    }
+  }
+
+  // Any types not in our groups (future-proofing)
+  const uncategorized = Object.entries(typeCounts).filter(([t]) => !allCounted.has(t));
+  if (uncategorized.length > 0) {
+    html += `<tr><td><strong>Other</strong></td><td></td><td></td></tr>`;
+    for (const [t, cnt] of uncategorized) {
+      html += `<tr><td></td><td>${t}</td><td>${cnt}</td></tr>`;
+    }
   }
   html += '</table>';
 
-  // Corrections
+  // Note: clef_treble/clef_bass in the Symbols table above is what the SymbolClassifier
+  // labelled based on shape features. The actual clef used for pitch mapping is shown
+  // separately in "Clef Detection" above — these may differ when NCC overrides the label.
+
+  // ── Corrections ───────────────────────────────────────────────────────────
   if (result.corrections.length > 0) {
     html += '<h4>Corrections</h4>';
     for (const c of result.corrections) html += `<p>${c}</p>`;
@@ -421,6 +598,33 @@ function renderDebugResults(result, fileName) {
 
   debugContent.innerHTML = html;
   debugResults.classList.add('active');
+  debugCopyBtn.style.display = 'inline-block';
+
+  // Store raw data snapshot for JSON export
+  _lastDebugData = {
+    fileName,
+    staffInfo: {
+      groups: result.staffInfo.groups.length,
+      staffSpace: result.staffInfo.staffSpace,
+      lineThickness: result.staffInfo.lineThickness
+    },
+    keySig: {
+      sharps: [...(result.keySig?.sharps ?? [])],
+      flats:  [...(result.keySig?.flats  ?? [])]
+    },
+    keySigDebug: _keySigDebug,
+    clefDetections: _clefDetections,
+    notes: notes.map(n => ({
+      noteName: n.noteName,
+      octave: n.octave,
+      midiNote: n.midiNote,
+      beats: n.beats,
+      clef: n.clef,
+      staffPos: n.staffPos,
+      x: Math.round(n.symbol?.component?.centroid?.x ?? 0)
+    })),
+    symbolCounts: typeCounts
+  };
 }
 
 // ── MIDI Download ──────────────────────────
@@ -436,4 +640,23 @@ downloadBtn.addEventListener('click', () => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+});
+
+// ── Playback ───────────────────────────────────
+
+playBtn.addEventListener('click', () => {
+  if (player.isPlaying) {
+    player.stop();
+    playBtn.textContent = '▶ Play';
+  } else if (lastPlaybackNotes && lastPlaybackNotes.length > 0) {
+    player.play(lastPlaybackNotes, lastPlaybackBpm);
+    playBtn.textContent = '■ Stop';
+    // Compute total duration and auto-revert button label
+    const beatDuration = 60 / lastPlaybackBpm;
+    const totalBeats = lastPlaybackNotes.reduce((s, n) => s + (n.beats || 1), 0);
+    const totalMs = totalBeats * beatDuration * 1000 + 200;
+    setTimeout(() => {
+      if (!player.isPlaying) playBtn.textContent = '▶ Play';
+    }, totalMs);
+  }
 });
