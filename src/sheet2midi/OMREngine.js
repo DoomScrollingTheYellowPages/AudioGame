@@ -12,6 +12,9 @@ import { PitchMapper } from './PitchMapper.js';
 import { DurationMapper } from './DurationMapper.js';
 import { GrammarValidator } from './GrammarValidator.js';
 import { MidiWriter } from '../rhythm/MidiWriter.js';
+import { SIG } from './SIG.js';
+import { BeamDetector } from './BeamDetector.js';
+import { LedgerDetector } from './LedgerDetector.js';
 
 // ── OMREngine ──────────────────────────────────
 
@@ -24,6 +27,8 @@ export class OMREngine {
     this._imageProcessor = new ImageProcessor(bus);
     this._skewCorrector = new SkewCorrector(bus);
     this._staffAnalyzer = new StaffAnalyzer(bus);
+    this._beamDetector = new BeamDetector();
+    this._ledgerDetector = new LedgerDetector();
     this._componentLabeler = new ComponentLabeler(bus);
     this._symbolClassifier = new SymbolClassifier(bus);
     this._pitchMapper = new PitchMapper(bus);
@@ -137,6 +142,16 @@ export class OMREngine {
       data: { binary: cleaned.slice(), width, height }
     });
 
+    // Stage 5.5: Beam and ledger pre-detection (SIG-based)
+    const sig = new SIG();
+    const detectedBeams = this._beamDetector.detect(
+      correctedBinary, width, height, staffSpace, sig
+    );
+    const detectedLedgers = this._ledgerDetector.detect(
+      correctedBinary, width, height, groups, staffSpace, lineThickness, sig
+    );
+    console.log(`[OMR] Stage 5.5: ${detectedBeams.length} beams, ${detectedLedgers.length} ledgers pre-detected`);
+
     // Stage 6: Connected component labeling
     this._bus.emit('omr:progress', { stage: 6, name: 'Segmenting symbols' });
     const { labels, count } = this._componentLabeler.label(cleaned, width, height);
@@ -144,6 +159,25 @@ export class OMREngine {
       labels, width, height, count, staffSpace
     );
     console.log(`[OMR] Stage 6: ${count} raw labels, ${components.length} components after filtering`);
+
+    // Stage 6.1: Priority label integration — tag components overlapping
+    // pre-detected beam/ledger regions so classifier can use them
+    for (const comp of components) {
+      for (const beam of detectedBeams) {
+        if (this._bboxOverlap(comp.bbox, beam.bbox) > 0.3) {
+          comp._priorityLabel = 'beam';
+          break;
+        }
+      }
+      if (!comp._priorityLabel) {
+        for (const ledger of detectedLedgers) {
+          if (this._bboxOverlap(comp.bbox, ledger.bbox) > 0.3) {
+            comp._priorityLabel = 'ledger';
+            break;
+          }
+        }
+      }
+    }
 
     // Stage 6.2: Spatial validity filter — discard components outside the
     // staff's vertical zone or taller than the full staff span.
@@ -208,6 +242,58 @@ export class OMREngine {
         }
       }
     }
+
+    // Stage 7.8: Register classified symbols as Inter nodes in the SIG
+    const noteTypes = new Set([
+      'filled_notehead', 'open_notehead', 'whole_note'
+    ]);
+    for (const s of symbols) {
+      if (s.type === 'unknown') continue;
+      // Compute grade based on classifier confidence heuristics
+      const grade = noteTypes.has(s.type) ? 0.8 : 0.6;
+      const inter = sig.addInter({
+        type: s.type,
+        grade: s._priorityLabel ? 0.9 : grade,
+        bbox: s.component.bbox,
+        data: { symbol: s }
+      });
+      s._interId = inter.id;
+    }
+
+    // Build support edges: notehead ↔ nearest stem
+    const stemInters = sig.getIntersByType('stem');
+    const headInters = [
+      ...sig.getIntersByType('filled_notehead'),
+      ...sig.getIntersByType('open_notehead'),
+      ...sig.getIntersByType('whole_note')
+    ];
+    for (const head of headInters) {
+      let bestStem = null;
+      let bestDist = Infinity;
+      for (const stem of stemInters) {
+        const dx = Math.abs((head.bbox?.x ?? 0) - (stem.bbox?.x ?? 0));
+        const dy = Math.abs((head.bbox?.y ?? 0) - (stem.bbox?.y ?? 0));
+        const dist = dx + dy;
+        if (dist < bestDist && dx < staffSpace * 2) {
+          bestDist = dist;
+          bestStem = stem;
+        }
+      }
+      if (bestStem) sig.addSupport(head.id, bestStem.id);
+    }
+
+    // Build support edges: stem ↔ beam (pre-detected beams)
+    for (const stem of stemInters) {
+      for (const beamInter of sig.getIntersByType('beam')) {
+        if (stem.bbox && beamInter.bbox && this._bboxOverlap(stem.bbox, beamInter.bbox) > 0.1) {
+          sig.addSupport(stem.id, beamInter.id);
+        }
+      }
+    }
+
+    // Run SIG reduction to resolve any exclusions from pre-detection
+    sig.reduce();
+    console.log(`[OMR] Stage 7.8: SIG has ${sig.getAllInters().length} Inters, ${sig.toJSON().edges.length} edges after reduction`);
 
     // Stage 8: Pitch assignment
     this._bus.emit('omr:progress', { stage: 8, name: 'Assigning pitches' });
@@ -316,7 +402,8 @@ export class OMREngine {
       corrections,
       staffInfo: { groups, staffSpace, lineThickness },
       symbols,
-      keySig: mergedKeySig
+      keySig: mergedKeySig,
+      sig: sig.toJSON()
     };
   }
 
@@ -362,6 +449,23 @@ export class OMREngine {
       }
     }
     return { gray: out, width: nw, height: nh };
+  }
+
+  /**
+   * Compute overlap ratio between two bounding boxes (intersection / smaller area).
+   * @param {{x:number,y:number,width:number,height:number}} a
+   * @param {{x:number,y:number,width:number,height:number}} b
+   * @returns {number} overlap ratio 0.0–1.0
+   */
+  _bboxOverlap(a, b) {
+    const x1 = Math.max(a.x, b.x);
+    const y1 = Math.max(a.y, b.y);
+    const x2 = Math.min(a.x + a.width, b.x + b.width);
+    const y2 = Math.min(a.y + a.height, b.y + b.height);
+    if (x2 <= x1 || y2 <= y1) return 0;
+    const intersection = (x2 - x1) * (y2 - y1);
+    const smaller = Math.min(a.width * a.height, b.width * b.height);
+    return smaller > 0 ? intersection / smaller : 0;
   }
 
   _splitNoteStems(components, binary, imgWidth, imgHeight, staffSpace) {

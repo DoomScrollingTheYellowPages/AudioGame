@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────
 
 import { SymbolType } from './SymbolClassifier.js';
+import { KeySigStateMap, enharmonicSpelling } from './KeySigStateMap.js';
 
 // ── Constants ──────────────────────────────────
 
@@ -508,27 +509,42 @@ export class PitchMapper {
 
   /**
    * Apply key signature and inline accidentals to modify MIDI note values.
-   * @param {Array<{symbol: object, noteName: string, midiNote: number}>} notes
+   * Uses KeySigStateMap for per-measure accidental tracking with barline reset.
+   * Notes must be sorted left-to-right (by x) before calling.
+   * @param {Array<{symbol: object, noteName: string, midiNote: number, x: number}>} notes
    * @param {{sharps: Set<string>, flats: Set<string>}} keySig
    * @param {Map<object, number>} inlineAccidentals
+   * @param {Array<{component: {centroid: {x: number}}}>} [barlines] - barline symbols for measure reset
    * @returns {Array} notes with adjusted midiNote values
    */
-  applyAccidentals(notes, keySig, inlineAccidentals) {
-    for (const n of notes) {
-      const inlineOffset = inlineAccidentals.get(n.symbol);
+  applyAccidentals(notes, keySig, inlineAccidentals, barlines = []) {
+    const stateMap = new KeySigStateMap(keySig.sharps, keySig.flats);
 
+    // Sort barline x-positions for measure boundary detection
+    const barlineXs = barlines
+      .map(b => b.component.centroid.x)
+      .sort((a, b) => a - b);
+    let nextBarlineIdx = 0;
+
+    for (const n of notes) {
+      // Check if we've crossed a barline — reset state
+      while (nextBarlineIdx < barlineXs.length && n.x > barlineXs[nextBarlineIdx]) {
+        stateMap.resetAtBarline();
+        nextBarlineIdx++;
+      }
+
+      const inlineOffset = inlineAccidentals.get(n.symbol);
       if (inlineOffset !== undefined) {
-        // Inline accidental overrides key signature
-        n.midiNote += inlineOffset;
-        if (inlineOffset === 1) n.noteName += '#';
-        else if (inlineOffset === -1) n.noteName += 'b';
-        // natural (0) cancels key sig — no semitone change
-      } else if (keySig.sharps.has(n.noteName)) {
-        n.midiNote += 1;
-        n.noteName += '#';
-      } else if (keySig.flats.has(n.noteName)) {
-        n.midiNote -= 1;
-        n.noteName += 'b';
+        // Inline accidental: apply and register in state map
+        stateMap.applyInlineAccidental(n.noteName, inlineOffset);
+      }
+
+      // Get effective accidental from state map (key sig + inline overrides)
+      const accidental = stateMap.getAccidental(n.noteName);
+      if (accidental !== 0) {
+        n.midiNote += accidental;
+        if (accidental === 1) n.noteName += '#';
+        else if (accidental === -1) n.noteName += 'b';
       }
     }
     return notes;
@@ -653,8 +669,11 @@ export class PitchMapper {
     // Pair inline accidentals with their notes
     const inlineAccidentals = this.pairInlineAccidentals(symbols, notes, staffSpace);
 
-    // Apply all accidentals (key sig + inline overrides)
-    this.applyAccidentals(notes, mergedKeySig, inlineAccidentals);
+    // Collect barline symbols for measure boundary detection
+    const barlines = symbols.filter(s => s.type === SymbolType.BAR_LINE);
+
+    // Apply all accidentals (key sig + inline overrides + barline resets)
+    this.applyAccidentals(notes, mergedKeySig, inlineAccidentals, barlines);
 
     if (inlineAccidentals.size > 0 || mergedKeySig.sharps.size > 0 || mergedKeySig.flats.size > 0) {
       console.log(`[OMR] Applied ${inlineAccidentals.size} inline accidentals, key sig: ${mergedKeySig.sharps.size} sharps, ${mergedKeySig.flats.size} flats`);
