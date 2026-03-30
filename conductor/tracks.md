@@ -62,4 +62,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 ## [~] Track: OMR Pipeline Phase 2 — Key Signatures, Rhythm Verification & Grand Staff Tests
 *Link: [./conductor/tracks/omr_phase2_20260328/](./conductor/tracks/omr_phase2_20260328/)*
 
+---
 
+## [ ] Track: OMR Pipeline Phase 3 — SIG Graph, Pipeline Reordering, Key Sig State Tracking
+*Link: [./conductor/tracks/omr_phase3_20260330/](./conductor/tracks/omr_phase3_20260330/)*

@@ -1,0 +1,8 @@
+{
+  "track_id": "omr_phase3_20260330",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-03-30T12:00:00Z",
+  "updated_at": "2026-03-30T12:00:00Z",
+  "description": "OMR Pipeline Phase 3 — SIG Graph, Pipeline Reordering, Key Sig State Tracking"
+}
