@@ -86,7 +86,7 @@ export class OMREngine {
 
     // Stage 2: Binarization
     this._bus.emit('omr:progress', { stage: 2, name: 'Binarizing' });
-    const binary = this._imageProcessor.binarize(gray, width, height);
+    let binary = this._imageProcessor.binarize(gray, width, height);
     this._bus.emit('omr:preprocessed', { width, height });
     this._bus.emit('omr:debug', {
       step: 'binary', label: 'Binarization',
@@ -95,7 +95,7 @@ export class OMREngine {
 
     // Stage 3: Skew correction (skip for upscaled digital images)
     this._bus.emit('omr:progress', { stage: 3, name: 'Correcting skew' });
-    let correctedGray, angle;
+    let correctedGray, angle; // eslint-disable-line prefer-const
     if (wasUpscaled) {
       // Clean digital images don't need skew correction
       correctedGray = new Uint8Array(gray);
@@ -107,14 +107,38 @@ export class OMREngine {
       angle = result.angle;
     }
     // Re-binarize corrected image if it was rotated
-    const correctedBinary = Math.abs(angle) > 0.002
+    let correctedBinary = Math.abs(angle) > 0.002
       ? this._imageProcessor.binarize(correctedGray, width, height)
       : binary;
 
     // Stage 4: Staff line detection
     this._bus.emit('omr:progress', { stage: 4, name: 'Detecting staff lines' });
-    const { groups, staffSpace, lineThickness, staffRows } =
+    let { groups, staffSpace, lineThickness, staffRows } =
       this._staffAnalyzer.detect(correctedBinary, width, height);
+
+    // Retry with elevated threshold if no staff lines found — catches
+    // anti-aliased images where staff lines are light gray (~170–220)
+    // that Otsu misses because dark border pixels skew the histogram.
+    if (groups.length === 0) {
+      console.log(`[OMR] Stage 4: no staff lines with standard binarization, retrying with elevated threshold`);
+      const retryThreshold = 220;
+      const retryBinary = new Uint8Array(gray.length);
+      for (let i = 0; i < gray.length; i++) {
+        retryBinary[i] = gray[i] > retryThreshold ? 255 : 0;
+      }
+      const retry = this._staffAnalyzer.detect(retryBinary, width, height);
+      if (retry.groups.length > 0) {
+        groups = retry.groups;
+        staffSpace = retry.staffSpace;
+        lineThickness = retry.lineThickness;
+        staffRows = retry.staffRows;
+        // Use the retry binary for downstream stages
+        binary = retryBinary;
+        correctedBinary = retryBinary;
+        correctedGray = gray;
+        console.log(`[OMR] Stage 4: elevated threshold recovered ${groups.length} staff groups`);
+      }
+    }
 
     console.log(`[OMR] Stage 4: ${groups.length} staff groups, staffSpace=${staffSpace}, lineThick=${lineThickness}, staffRows=${staffRows.length}`);
     this._bus.emit('omr:debug', {

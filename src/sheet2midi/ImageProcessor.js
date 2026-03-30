@@ -214,6 +214,47 @@ export class ImageProcessor {
   }
 
   /**
+   * Normalize contrast by stretching the gray histogram to fill [0, 255].
+   * Clamps outlier pixels (top/bottom 1%) before stretching.
+   * Effective at making anti-aliased staff lines survive binarization.
+   * @param {Uint8Array} gray
+   * @param {number} width
+   * @param {number} height
+   * @returns {Uint8Array}
+   */
+  contrastStretch(gray, width, height) {
+    const n = gray.length;
+    const hist = new Uint32Array(256);
+    for (let i = 0; i < n; i++) hist[gray[i]]++;
+
+    // Find 1st and 99th percentile
+    const clip = Math.floor(n * 0.01);
+    let low = 0, high = 255;
+    let cumLow = 0;
+    for (let i = 0; i < 256; i++) {
+      cumLow += hist[i];
+      if (cumLow >= clip) { low = i; break; }
+    }
+    let cumHigh = 0;
+    for (let i = 255; i >= 0; i--) {
+      cumHigh += hist[i];
+      if (cumHigh >= clip) { high = i; break; }
+    }
+
+    if (high <= low) return new Uint8Array(gray);
+
+    const out = new Uint8Array(n);
+    const scale = 255 / (high - low);
+    for (let i = 0; i < n; i++) {
+      const v = gray[i];
+      if (v <= low) out[i] = 0;
+      else if (v >= high) out[i] = 255;
+      else out[i] = Math.round((v - low) * scale);
+    }
+    return out;
+  }
+
+  /**
    * Apply morphological closing (dilate then erode) with a square kernel.
    * @param {Uint8Array} binary
    * @param {number} width
